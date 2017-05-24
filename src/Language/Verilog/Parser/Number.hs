@@ -14,7 +14,7 @@ import Text.Trifecta hiding (octDigit, hexDigit)
 import Language.Verilog.Syntax.Number
 import Language.Verilog.Syntax.Number.Value
 
-size :: (Monad m, TokenParsing m) => m Integer
+size :: (Monad m, TokenParsing m) => m Int
 size = token nonZeroUnsigned <?> "number bit size"
 
 signed :: (CharParsing m) => m Sign
@@ -38,14 +38,14 @@ isOctDigit c = C.isOctDigit c
             || c `elem` ("xXzZ" :: String)
 isBinDigit c = c `elem` ("01zZxX" :: String)
 
-nonZeroUnsigned :: (Monad m, TokenParsing m) => m Integer
+nonZeroUnsigned :: (Monad m, TokenParsing m) => m Int
 nonZeroUnsigned = read <$> do
     d <- nonZeroDecDigit
     optional underscore
     n <- option "" (valueStr decDigit)
     return (d:n)
 
-unsigned :: (Monad m, TokenParsing m) => m Integer
+unsigned :: (Monad m, TokenParsing m) => m Int
 unsigned = read . concat <$> sepEndBy1 (some decDigit) underscore
 
 hexDigit, decDigit, nonZeroDecDigit, octDigit, binDigit :: CharParsing m
@@ -80,7 +80,7 @@ number = do
           <|> satisfy isUnknownDigit *> pure [Unknown]
         _       -> concat <$> (fmap (singleValue b) <$> value b)
   val <- token pVal
-  let width = fromMaybe (toInteger $ length val) msize
+  let width = fromMaybe (length val) msize
   return (Number sign width (reverse val))
 
 singleValue :: Base -> Char -> [Value]
