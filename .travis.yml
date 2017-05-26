@@ -18,7 +18,7 @@ install:
   - stack --no-terminal --install-ghc test --only-dependencies
 
 script:
-  - stack --no-terminal test --haddock --no-haddock-deps
+  - stack --no-terminal --coverage test
 
 after_script:
   - stack install hpc-coveralls
