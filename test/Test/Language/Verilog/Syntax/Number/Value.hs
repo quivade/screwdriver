@@ -11,13 +11,14 @@ import qualified Test.Tasty.SmallCheck as SC
 import Test.QuickCheck (Arbitrary, Gen, arbitrary, choose, frequency, shrink)
 import Test.SmallCheck.Series
 
+import Language.Verilog.Syntax.Number
 import Language.Verilog.Syntax.Number.Value
 
 instance Arbitrary Value where
   arbitrary = do
-    n <- frequency [ (4, return 0)
-                   , (4, return 1)
-                   , (2, return 2)
+    n <- frequency [ (5, return 0)
+                   , (5, return 1)
+                   , (1, return 2)
                    , (1, return 3)
                    ] :: Gen Int
     return $ case n of
@@ -34,7 +35,7 @@ instance Arbitrary Value where
 instance Monad m => Serial m Value where
   series = cons0 Zero \/ cons0 One \/ cons0 Unknown \/ cons0 HighZ
 
-newtype Known a = Known { getKnown :: Value }
+newtype Known a = Known { getKnown :: a }
 
 instance Arbitrary (Known Value) where
   arbitrary = do
@@ -52,7 +53,7 @@ instance Show a => Show (Known a) where
 
 properties :: TestTree
 properties = testGroup "boolean arithmetic"
-  [secondaryOps, monotone, nonMonotone]
+  [secondaryOps, monotone, nonMonotone, hask]
 
 secondaryOps = testGroup "secondary operations"
   [ SC.testProperty "xor" xorOp ]
@@ -103,6 +104,12 @@ deMorgan = testGroup "De Morgan's laws"
   , SC.testProperty "¬x ∨ ¬y = ¬(x ∧ y)" $ demorgan (.|.) (.&.) complement
   ]
 
+hask = testGroup "Data.Bits properties"
+  [ SC.testProperty "clear Zero" clearZero
+  , SC.testProperty "set Zero" setZero
+  , SC.testProperty "test Zero" testZero
+  , SC.testProperty "pop Zero" popZero
+  ]
 associativity :: (Value -> Value -> Value) -> Value -> Value -> Value -> Bool
 associativity = associative
 
@@ -153,3 +160,16 @@ demorgan :: (Value -> Value -> Value)
          -> Value -> Value
          -> Bool
 demorgan f g n x y = f (n x) (n y) == n (g x y)
+
+clearZero :: Int -> Bool
+clearZero n = clearBit (zeroBits :: Value) n == zeroBits
+
+setZero :: Int -> Bool
+setZero n = setBit (zeroBits :: Value) n == bit n
+
+testZero :: Int -> Bool
+testZero n = not (testBit (zeroBits :: Value) n)
+-- testZero n = testBit zeroBits n == False
+
+popZero :: Bool
+popZero = popCount (zeroBits :: Value) == 0
