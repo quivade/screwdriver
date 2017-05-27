@@ -20,11 +20,18 @@ arbitraryValues gen m
   | m == 0 = return []
   | otherwise = (:) <$> gen <*> arbitraryValues gen (m - 1)
 
+instance Arbitrary Sign where
+  arbitrary = choose (True, False)
+    >>= \s -> return $
+      if s then Unsigned
+           else Signed
+
+  shrink Unsigned = []
+  shrink Signed = [Unsigned]
+
 instance Arbitrary Number where
   arbitrary = QC.sized $ \n -> do
-    s <- choose (True, False)
-    let sign = if s then Unsigned
-                    else Signed
+    sign <- arbitrary :: Gen Sign
     known <- frequency [ (7, return 0)
                        , (2, return 1)
                        ]
@@ -37,6 +44,15 @@ instance Arbitrary Number where
   shrink (Number sign _ val) = do
     v <- shrink val
     return $ Number sign (length v) v
+
+instance Arbitrary (Known Number) where
+  arbitrary = QC.sized $ \n -> do
+    sign <- arbitrary :: Gen Sign
+    let gen = (arbitrary :: Gen (Known Value)) >>= \(Known a) -> return a
+    val <- arbitraryValues gen n
+    return . Known $ Number sign n val
+
+  shrink (Known n) = Known <$> shrink n
 
 instance Monad m => Serial m Sign where
   series = cons0 Unsigned \/ cons0 Signed
