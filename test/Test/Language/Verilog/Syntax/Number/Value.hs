@@ -14,6 +14,8 @@ import Test.SmallCheck.Series
 import Language.Verilog.Syntax.Number
 import Language.Verilog.Syntax.Number.Value
 
+import qualified Test.Num as TN
+
 instance Arbitrary Value where
   arbitrary = do
     n <- frequency [ (5, return 0)
@@ -53,8 +55,9 @@ instance Show a => Show (Known a) where
 
 properties :: TestTree
 properties = testGroup "boolean arithmetic"
-  [secondaryOps, monotone, nonMonotone, hask]
+  [ secondaryOps, monotone, nonMonotone, hask, num ]
 
+-- | Data.Bits properties
 secondaryOps = testGroup "secondary operations"
   [ SC.testProperty "xor" xorOp ]
 
@@ -173,3 +176,55 @@ testZero n = not (testBit (zeroBits :: Value) n)
 
 popZero :: Bool
 popZero = popCount (zeroBits :: Value) == 0
+
+-- | Num properties
+num :: TestTree
+num = testGroup "Num Value properties (SmallCheck)"
+  [ propsAdd
+  , propsMul
+  , propsSign
+  ]
+
+propsAdd :: TestTree
+propsAdd = testGroup "Addition properties"
+  [ SC.testProperty "commutativity"
+    (TN.commutativeAdd :: Value -> Value -> Bool)
+  , SC.testProperty "associativity"
+    (TN.associativeAdd :: Value -> Value -> Value -> Bool)
+  , SC.testProperty "adding zero" $ knownUnitAdd Zero
+  ]
+
+knownUnitAdd :: Value -> Known Value -> Bool
+knownUnitAdd zero (Known x) = TN.unitAdd zero x
+
+propsMul :: TestTree
+propsMul = testGroup "Multiplication properties"
+  [ SC.testProperty "commutativity"
+    (TN.commutativeMul :: Value -> Value -> Bool)
+  , SC.testProperty "associativity"
+    (TN.associativeMul :: Value -> Value -> Value -> Bool)
+  , SC.testProperty "multiply by 1" $ knownUnitMul One
+  , SC.testProperty "multiply by 0" $ knownAnihilatorMul Zero
+  , SC.testProperty "distributivity"
+    (TN.distributive :: Value -> Value -> Value -> Bool)
+  ]
+
+knownUnitMul :: Value -> Known Value -> Bool
+knownUnitMul one (Known x) = TN.unitMul one x
+
+knownAnihilatorMul :: Value -> Known Value -> Known Value -> Bool
+knownAnihilatorMul zero (Known x) (Known y) = TN.anihilatorMul zero x y
+
+propsSign :: TestTree
+propsSign = testGroup "sign and negation"
+  [ SC.testProperty "double negation" knownDoubleNeg
+  -- there is no -1 in Value
+  -- , SC.testProperty "multiply by -1" $ knownMinusOne One
+  , SC.testProperty "abs x × signum x == x" knownSig
+  ]
+
+knownDoubleNeg :: Known Value -> Bool
+knownDoubleNeg (Known x) = TN.doubleNeg x
+
+knownSig :: Known Value -> Bool
+knownSig (Known x) = TN.sig x
