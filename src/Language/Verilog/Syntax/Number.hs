@@ -1,7 +1,11 @@
 module Language.Verilog.Syntax.Number
-  ( Sign (..)
-  , Base (..)
+  ( module Language.Verilog.Syntax.Number.Value
+  , Sign (..)
   , Number (..)
+  , carrySum
+  , decValue
+  , toInt
+  , signExtend
   ) where
 
 import Data.Bits
@@ -29,15 +33,14 @@ zipWith' f (a:as) []     = a : zipWith' f as []
 zipWith' f []     (b:bs) = b : zipWith' f [] bs
 zipWith' f (a:as) (b:bs) = f a b : zipWith' f as bs
 
-maxSize :: Number -> Number -> Int
-maxSize a b = max (numberSize a) (numberSize b)
-
 bitwiseBinOp :: (Value -> Value -> Value) -> Number -> Number -> Number
 bitwiseBinOp f n1 n2 = Number Unsigned (maxSize n1 n2)
   (zipWith' f (numberValue n1) (numberValue n2))
+    where maxSize :: Number -> Number -> Int
+          maxSize a b = max (numberSize a) (numberSize b)
 
 bitwiseUnOp :: (Value -> Value) -> Number -> Number
-bitwiseUnOp f n = Number Unsigned (numberSize n) (f <$> numberValue n)
+bitwiseUnOp f (Number sign size val) = Number sign size (f <$> val)
 
 instance Bits Number where
   (.&.) = bitwiseBinOp (.&.)
@@ -48,9 +51,7 @@ instance Bits Number where
   complement = bitwiseUnOp complement
 
   -- both << (logical) and <<< (arithmetic)
-  shiftL (Number sign size val) s = Number sign size $
-    take size $ fill ++ val
-      where fill = replicate s Zero
+  shiftL num s = takeBits (shiftExtendL num s) (numberSize num)
 
   -- >> logical operator
   shiftR (Number sign size val) s = Number sign size $
@@ -93,15 +94,150 @@ instance FiniteBits Number where
   countLeadingZeros (Number _ _ val) =
     length $ takeWhile (== Zero) val
 
-data Base
-  = HexBase
-  | DecBase
-  | OctBase
-  | BinBase
-  deriving Eq
+wider :: Number -> Number -> (Number, Number)
+wider n1 n2 =
+  if numberSize n1 < numberSize n2
+     then (n2, n1)
+     else (n1, n2)
 
-instance Show Base where
-  show HexBase = "h"
-  show DecBase = "d"
-  show OctBase = "o"
-  show BinBase = "b"
+zeroPad :: Number -> Int -> Number
+zeroPad (Number sign s v) n = Number sign n
+  $ v ++ replicate (n - s) Zero
+
+signExtend :: Number -> Int -> Number
+signExtend (Number Signed s v) n = Number Signed n
+  $ v ++ replicate (n - s) (last v)
+signExtend n u = zeroPad n u
+
+carrySum :: Value -> [Value] -> [Value] -> [Value]
+carrySum _ []     []     = []
+carrySum c []     ys     = carrySum c ys []
+carrySum c (x:xs) []     = let (out, carry) = fullAdder c x Zero
+                            in out:carrySum carry xs []
+  -- let (out, carry) = fullAdder c Zero y
+  --                           in out:carrySum carry [] ys
+carrySum c (x:xs) (y:ys) = let (out, carry) = fullAdder c x y
+                            in out:carrySum carry xs ys
+
+carryAdd :: Value -> Number -> Number -> [Value]
+carryAdd c x y = let size = max (numberSize x) (numberSize y)
+                  in carrySum c (numberValue $ signExtend x (size + 1))
+                  (numberValue $ signExtend y (size + 1))
+
+toSigned :: Number -> Number
+toSigned (Number Unsigned size val) = Number Signed size val
+toSigned n = n
+
+-- | logical shift left with size extension
+shiftExtendL :: Number -> Int -> Number
+shiftExtendL (Number sign size val) s = Number sign (size + s) $ fill ++ val
+  where fill = replicate s Zero
+
+-- | hard clip bit width to match size
+takeBits :: Number -> Int -> Number
+takeBits n@(Number sign size val) s
+  | s > size = signExtend n s
+  | otherwise = Number sign s $ take s val
+
+asSigned :: Number -> Number
+asSigned (Number _ size val) = Number Signed size val
+
+asUnsigned :: Number -> Number
+asUnsigned (Number _ size val) = Number Unsigned size val
+
+instance Num Number where
+  x@(Number Signed sx _) + y@(Number Signed sy _)
+    | sx == sy = Number Signed sx
+      $ carrySum Zero
+        (numberValue $ signExtend x sx)
+        (numberValue $ signExtend y sx)
+    | otherwise =
+      let size = max sx sy
+       in signExtend x size + signExtend y size
+
+  x@(Number Unsigned sx _) + y@(Number Unsigned sy _)
+    | sx == sy = Number Unsigned sx
+      $ carrySum Zero
+        (numberValue $ signExtend x sx)
+        (numberValue $ signExtend y sx)
+    | otherwise =
+      let size = max sx sy
+       in signExtend x size + signExtend y size
+
+  x + y = asUnsigned x + asUnsigned y
+
+  negate num =
+    let size = numberSize num
+     in ignoreOverflow $ (toSigned . complement) num
+       + Number Signed size (One:replicate (size - 1) Zero)
+
+  abs num@(Number Signed size val)
+    | last val == One = negate num
+    | otherwise = num
+  abs num = num
+
+  signum num@(Number Signed size val)
+    | int < 0 = Number Signed size $ replicate size One
+    | int > 0 = Number Signed size (One : replicate (size - 1) Zero)
+    | otherwise = Number Signed size $ replicate size Zero
+    where int = toInt num
+
+  fromInteger n =
+    let dec = decValue (abs n)
+        val
+          | n < 0 && abs n == 2 ^ (length dec - 1) = dec
+          | n == 0 = dec
+          | otherwise = dec ++ [Zero]
+        size = length val
+        neg = if n < 0 then negate
+                       else id
+     in neg $ Number Signed size val
+
+-- | Sort of like Bounded class but depends on runtime size value
+minNumber, maxNumber :: Number -> Number
+minNumber (Number Unsigned s _) = Number Unsigned s $ replicate s Zero
+minNumber (Number Signed   s _) = Number Signed   s $ One : replicate (s-1) Zero
+maxNumber (Number Unsigned s _) = Number Unsigned s $ replicate s One
+maxNumber (Number Signed   s _) = Number Signed   s $ Zero : replicate (s-1) One
+
+ignoreOverflow :: Number -> Number
+ignoreOverflow (Number sign size val) = let s = size - 1
+                                         in Number sign s $ take s val
+
+decValue :: Integer -> [Value]
+decValue 0 = [Zero]
+decValue 1 = [One]
+decValue i = decValue (i `rem` 2) ++ decValue (i `quot` 2)
+
+toInt :: Number -> Int
+toInt (Number Unsigned s val) = go 0 val
+  where go _ [] = 0
+        go n (One:vs) =  2 ^ n + go (n + 1) vs
+        go n (Zero:vs) = go (n + 1) vs
+toInt n@(Number Signed s val) =
+  if last val == One
+     then negate $ toInt (Number Unsigned s (numberValue $ negate n))
+     else toInt $ Number Unsigned s val
+
+-- | Verilog comparisons which return:
+-- 1'b0 for false
+-- 1'b1 for true
+-- 1'bx if any of the compared numbers contain X or Z
+-- lt, gt, eq :: Number -> Number -> Number
+-- lt n1@(Number Signed s1 v1) n2@(Number Signed s2 v2)
+--   | any (\e -> e == Unknown || e == HighZ) v1 = unknown
+--   | any (\e -> e == Unknown || e == HighZ) v2 = unknown
+--   | toInt n1 < toInt n2 = one
+--   | otherwise = zero
+
+-- gt n1@(Number Signed s1 v1) n2@(Number Signed s2 v2)
+--   | any (\e -> e == Unknown || e == HighZ) v1 = unknown
+--   | any (\e -> e == Unknown || e == HighZ) v2 = unknown
+--   | toInt n1 > toInt n2 = one
+--   | otherwise = zero
+
+-- eq n1@(Number Signed s1 v1) n2@(Number Signed s2 v2)
+--   | any (\e -> e == Unknown || e == HighZ) v1 = unknown
+--   | any (\e -> e == Unknown || e == HighZ) v2 = unknown
+--   | toInt n1 == toInt n2 = one
+--   | otherwise = zero

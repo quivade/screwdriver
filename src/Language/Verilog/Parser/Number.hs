@@ -14,6 +14,19 @@ import Text.Trifecta hiding (octDigit, hexDigit)
 import Language.Verilog.Syntax.Number
 import Language.Verilog.Syntax.Number.Value
 
+data Base
+  = HexBase
+  | DecBase
+  | OctBase
+  | BinBase
+  deriving Eq
+
+instance Show Base where
+  show HexBase = "h"
+  show DecBase = "d"
+  show OctBase = "o"
+  show BinBase = "b"
+
 size :: (Monad m, TokenParsing m) => m Int
 size = token nonZeroUnsigned <?> "number bit size"
 
@@ -76,7 +89,7 @@ number = do
   b <- base
   let pVal = case b of
         DecBase -> decValue . toInteger . read <$> valueStr decDigit
-          <|> satisfy isHighZDigit *> pure [HighZ] 
+          <|> satisfy isHighZDigit *> pure [HighZ]
           <|> satisfy isUnknownDigit *> pure [Unknown]
         _       -> concat <$> (fmap (singleValue b) <$> value b)
   val <- token pVal
@@ -87,11 +100,6 @@ singleValue :: Base -> Char -> [Value]
 singleValue HexBase = hexValue
 singleValue OctBase = octValue
 singleValue BinBase = binValue
-
-decValue :: Integer -> [Value]
-decValue 0 = [Zero]
-decValue 1 = [One]
-decValue i = decValue (i `quot` 2) ++ decValue (i `rem` 2)
 
 hexValue :: Char -> [Value]
 hexValue '0' = [Zero, Zero, Zero, Zero]

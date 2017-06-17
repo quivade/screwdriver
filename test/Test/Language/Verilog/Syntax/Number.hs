@@ -13,7 +13,10 @@ import Test.SmallCheck.Series
 
 import Language.Verilog.Syntax.Number
 import Language.Verilog.Syntax.Number.Value
-import Test.Language.Verilog.Syntax.Number.Value
+import qualified Test.Language.Verilog.Syntax.Number.Value as TV
+
+import Test.Num (Known (..))
+import qualified Test.Num as TN
 
 arbitraryValues :: Arbitrary a => Gen a -> Int -> Gen [a]
 arbitraryValues gen m
@@ -71,3 +74,33 @@ instance Monad m => Serial m Number where
 
 instance Monad m => Serial m (Known Number) where
   series = Known <$> generate (numbers [Zero, One])
+
+properties :: TestTree
+properties = testGroup "Number Num instance"
+  [smallNum]
+
+-- | Num properties
+smallNum :: TestTree
+smallNum = testGroup "Num Number properties (SmallCheck)"
+  [ smallPropsAdd
+  -- , propsMul
+  -- , propsSign
+  ]
+
+limitBits :: SC.Testable m a => SC.Depth -> a -> SC.Property m
+limitBits n = SC.changeDepth (const n)
+
+smallPropsAdd :: TestTree
+smallPropsAdd = testGroup "Addition properties"
+  [ SC.testProperty "commutativity"
+    $ limitBits 4 (TN.commutativeAdd :: Number -> Number -> Bool)
+  , SC.testProperty "associativity"
+    $ limitBits 3 (TN.associativeAdd :: Number -> Number -> Number -> Bool)
+  , SC.testProperty "adding zero"
+    -- Unsigned Zero acctually changes expression type to Unsigned
+    -- Signed Zero is neutral in that matter
+    $ limitBits 4 (knownUnitAdd (Number Signed 1 [Zero]))
+  ]
+
+knownUnitAdd :: Number -> Known Number -> Bool
+knownUnitAdd zero (Known x) = TN.unitAdd zero x

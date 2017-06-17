@@ -10,6 +10,11 @@ import qualified Test.Tasty.QuickCheck as QC
 import qualified Test.Tasty.SmallCheck as SC
 import Test.SmallCheck.Series
 
+newtype Known a = Known { getKnown :: a }
+
+instance Show a => Show (Known a) where
+  show (Known a) = show a
+
 quickPropsNum :: (Eq a, Num a, Show a, QC.Arbitrary a)
               => a -> a -> TestTree
 quickPropsNum zero one = testGroup "Num properties (QuickCheck)"

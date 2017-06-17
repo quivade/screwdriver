@@ -1,5 +1,7 @@
 module Language.Verilog.Syntax.Number.Value
-  ( Value (..) ) where
+  ( Value (..)
+  , fullAdder
+  ) where
 
 import Data.Bits
 
@@ -15,13 +17,27 @@ instance Show Value where
   show Zero    = "0"
   show Unknown = "x"
   show HighZ   = "z"
-  showList vs s = foldl (\s v -> s ++ show v) s vs
+  showList vs s = foldl (\s v -> show v ++ s) s vs
   -- showList [] s = s
-  -- showList (v:vs) s = showList vs (s ++ show v)
+  -- showList (v:vs) s = showList vs (show v ++ s)
 
 -- instance Show [Value] where
 --   show []     = ""
 --   show (v:vs) = show v ++ show vs
+
+fullAdder :: Value          -- ^ carry in
+          -> Value          -- ^ a
+          -> Value          -- ^ b
+          -> (Value, Value) -- ^ (out, carry out)
+fullAdder Zero Zero Zero = (Zero, Zero)
+fullAdder Zero Zero One  = (One,  Zero)
+fullAdder Zero One  Zero = (One,  Zero)
+fullAdder Zero One  One  = (Zero,  One)
+fullAdder One  Zero Zero = (One,  Zero)
+fullAdder One  Zero One  = (Zero, One)
+fullAdder One  One  Zero = (Zero, One)
+fullAdder One  One  One  = (One,  One)
+fullAdder _    _    _    = (Unknown, Unknown)
 
 instance Num Value where
   Zero + Zero = Zero

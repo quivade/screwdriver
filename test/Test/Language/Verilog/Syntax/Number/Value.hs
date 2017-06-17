@@ -14,6 +14,7 @@ import Test.SmallCheck.Series
 import Language.Verilog.Syntax.Number
 import Language.Verilog.Syntax.Number.Value
 
+import Test.Num (Known (..))
 import qualified Test.Num as TN
 
 instance Arbitrary Value where
@@ -37,8 +38,6 @@ instance Arbitrary Value where
 instance Monad m => Serial m Value where
   series = cons0 Zero \/ cons0 One \/ cons0 Unknown \/ cons0 HighZ
 
-newtype Known a = Known { getKnown :: a }
-
 instance Arbitrary (Known Value) where
   arbitrary = do
     n <- choose (0, 1) :: Gen Int
@@ -49,9 +48,6 @@ instance Arbitrary (Known Value) where
 
 instance Monad m => Serial m (Known Value) where
   series = Known <$> cons0 Zero \/ cons0 One
-
-instance Show a => Show (Known a) where
-  show (Known a) = show a
 
 properties :: TestTree
 properties = testGroup "boolean arithmetic"
