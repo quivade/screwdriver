@@ -166,9 +166,34 @@ instance Num Number where
 
   x + y = asUnsigned x + asUnsigned y
 
+  x@(Number Unsigned sx vx) * y@(Number Unsigned sy vy) =
+    multiply (Number Unsigned 1 [Zero]) 0 vx vy
+      where multiply :: Number -> Int -> [Value] -> [Value] -> Number
+            multiply acc _ _ [] = acc
+            multiply acc n a (b:bs) =
+              multiply (acc + partial n a b) (n + 1) a bs
+
+            partial :: Int -> [Value] -> Value -> Number
+            partial n a b =
+              shiftExtendL (Number Unsigned (length a) ((*b) <$> a)) n
+
+  x@(Number Signed _ vx) * y@(Number Signed _ vy) =
+    multiply (fromInteger 0) 0 vx vy
+      where multiply :: Number -> Int -> [Value] -> [Value] -> Number
+            multiply acc _ _ [] = acc
+            multiply acc n a (b:[]) = acc - partial n a b
+            multiply acc n a (b:bs) =
+              multiply (acc + partial n a b) (n + 1) a bs
+
+            partial :: Int -> [Value] -> Value -> Number
+            partial n a b =
+              shiftExtendL (Number Signed (length a) ((*b) <$> a)) n
+
+  x * y = asUnsigned x * asUnsigned y
+
   negate num =
     let size = numberSize num
-     in ignoreOverflow $ (toSigned . complement) num
+     in (toSigned $ complement num)
        + Number Signed size (One:replicate (size - 1) Zero)
 
   abs num@(Number Signed size val)
