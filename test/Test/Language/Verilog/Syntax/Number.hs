@@ -83,7 +83,7 @@ properties = testGroup "Number Num instance"
 smallNum :: TestTree
 smallNum = testGroup "Num Number properties (SmallCheck)"
   [ smallPropsAdd
-  -- , propsMul
+  , smallPropsMul
   -- , propsSign
   ]
 
@@ -101,6 +101,23 @@ smallPropsAdd = testGroup "Addition properties"
     -- Signed Zero is neutral in that matter
     $ limitBits 4 (knownUnitAdd (Number Signed 1 [Zero]))
   ]
+
+smallPropsMul :: TestTree
+smallPropsMul = testGroup "Multiplication properties"
+  [ SC.testProperty "commutativity"
+    $ limitBits 4 (TN.commutativeMul :: Number -> Number -> Bool)
+  , SC.testProperty "associativity"
+    $ limitBits 3 (TN.associativeMul :: Number -> Number -> Number -> Bool)
+  , SC.testProperty "multiply by 1"
+    $ limitBits 4 (TN.unitMul (fromInteger 1) :: Number -> Bool)
+  , SC.testProperty "multiply by 0"
+    $ limitBits 4 (
+      (TN.anihilatorMul $ Number Unsigned 1 [Zero]) :: Number -> Number -> Bool
+    )
+  , SC.testProperty "distributivity"
+    $ limitBits 4 (TN.distributive :: Number -> Number -> Number -> Bool)
+  ]
+
 
 knownUnitAdd :: Number -> Known Number -> Bool
 knownUnitAdd zero (Known x) = TN.unitAdd zero x

@@ -6,6 +6,7 @@ module Language.Verilog.Syntax.Number
   , decValue
   , toInt
   , signExtend
+  , shiftExtendL
   ) where
 
 import Data.Bits
@@ -173,12 +174,18 @@ instance Num Number where
             multiply acc n a (b:bs) =
               multiply (acc + partial n a b) (n + 1) a bs
 
-            partial :: Int -> [Value] -> Value -> Number
-            partial n a b =
-              shiftExtendL (Number Unsigned (length a) ((*b) <$> a)) n
+            ext :: Int
+            ext = sx + sy - 1
 
-  x@(Number Signed _ vx) * y@(Number Signed _ vy) =
-    multiply (fromInteger 0) 0 vx vy
+            partial :: Int -> [Value] -> Value -> Number
+            partial n a b = signExtend
+              (shiftExtendL (Number Unsigned (length a) ((*b) <$> a)) n) ext
+
+  x@(Number Signed sx vx) * y@(Number Signed sy vy) =
+    let size = 2 * max sx sy
+        p = signExtend x size
+        q = signExtend y size
+     in multiply (fromInteger 0) 0 (numberValue p) (numberValue q)
       where multiply :: Number -> Int -> [Value] -> [Value] -> Number
             multiply acc _ _ [] = acc
             multiply acc n a (b:[]) = acc - partial n a b
