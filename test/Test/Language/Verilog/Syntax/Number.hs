@@ -113,9 +113,8 @@ smallPropsMul = testGroup "Multiplication properties"
   , SC.testProperty "multiply by 0"
     $ limitBits 4 (knownAnihilatorMul $ Number Unsigned 1 [Zero])
   , SC.testProperty "distributivity"
-    $ limitBits 4 (TN.distributive :: Number -> Number -> Number -> Bool)
+    $ limitBits 3 (TN.distributive :: Number -> Number -> Number -> Bool)
   ]
-
 
 knownUnitAdd :: Number -> Known Number -> Bool
 knownUnitAdd zero (Known x) = TN.unitAdd zero x
