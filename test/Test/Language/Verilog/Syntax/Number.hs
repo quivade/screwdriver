@@ -109,11 +109,9 @@ smallPropsMul = testGroup "Multiplication properties"
   , SC.testProperty "associativity"
     $ limitBits 3 (TN.associativeMul :: Number -> Number -> Number -> Bool)
   , SC.testProperty "multiply by 1"
-    $ limitBits 4 (TN.unitMul (fromInteger 1) :: Number -> Bool)
+    $ limitBits 4 (knownUnitMul 1)
   , SC.testProperty "multiply by 0"
-    $ limitBits 4 (
-      (TN.anihilatorMul $ Number Unsigned 1 [Zero]) :: Number -> Number -> Bool
-    )
+    $ limitBits 4 (knownAnihilatorMul $ Number Unsigned 1 [Zero])
   , SC.testProperty "distributivity"
     $ limitBits 4 (TN.distributive :: Number -> Number -> Number -> Bool)
   ]
@@ -121,3 +119,9 @@ smallPropsMul = testGroup "Multiplication properties"
 
 knownUnitAdd :: Number -> Known Number -> Bool
 knownUnitAdd zero (Known x) = TN.unitAdd zero x
+
+knownUnitMul :: Number -> Known Number -> Bool
+knownUnitMul one (Known x) = TN.unitMul one x
+
+knownAnihilatorMul :: Number -> Known Number -> Known Number -> Bool
+knownAnihilatorMul zero (Known x) (Known y) = TN.anihilatorMul zero x y

@@ -9,6 +9,9 @@ module Language.Verilog.Syntax.Number
   , shiftExtendL
   ) where
 
+import qualified Prelude as P
+import           Prelude hiding (take)
+
 import Data.Bits
 import Language.Verilog.Syntax.Number.Value
 
@@ -52,7 +55,7 @@ instance Bits Number where
   complement = bitwiseUnOp complement
 
   -- both << (logical) and <<< (arithmetic)
-  shiftL num s = takeBits (shiftExtendL num s) (numberSize num)
+  shiftL num s = take (numberSize num) (shiftExtendL num s)
 
   -- >> logical operator
   shiftR (Number sign size val) s = Number sign size $
@@ -134,11 +137,11 @@ shiftExtendL :: Number -> Int -> Number
 shiftExtendL (Number sign size val) s = Number sign (size + s) $ fill ++ val
   where fill = replicate s Zero
 
--- | hard clip bit width to match size
-takeBits :: Number -> Int -> Number
-takeBits n@(Number sign size val) s
-  | s > size = signExtend n s
-  | otherwise = Number sign s $ take s val
+take :: Int -> Number -> Number
+take n a@(Number sign size val)
+  | n <= 0 = a
+  | n > size = signExtend a n
+  | otherwise = Number sign n $ P.take n val
 
 asSigned :: Number -> Number
 asSigned (Number _ size val) = Number Signed size val
@@ -168,39 +171,46 @@ instance Num Number where
   x + y = asUnsigned x + asUnsigned y
 
   x@(Number Unsigned sx vx) * y@(Number Unsigned sy vy) =
-    multiply (Number Unsigned 1 [Zero]) 0 vx vy
-      where multiply :: Number -> Int -> [Value] -> [Value] -> Number
-            multiply acc _ _ [] = acc
-            multiply acc n a (b:bs) =
-              multiply (acc + partial n a b) (n + 1) a bs
+    let size = max sx sy
+        double = 2 * size
+        p = signExtend x double
+        q = signExtend y double
 
-            ext :: Int
-            ext = sx + sy - 1
+        multiply :: Number -> Int -> [Value] -> [Value] -> Number
+        multiply acc _ _ [] = acc
+        multiply acc n a (b:bs) =
+          multiply (acc + partial n a b) (n + 1) a bs
 
-            partial :: Int -> [Value] -> Value -> Number
-            partial n a b = signExtend
-              (shiftExtendL (Number Unsigned (length a) ((*b) <$> a)) n) ext
+        partial :: Int -> [Value] -> Value -> Number
+        partial n a b = take size
+          (shiftExtendL (Number Unsigned (length a) ((*b) <$> a)) n)
+
+     in take size
+          (multiply (Number Unsigned 1 [Zero]) 0 (numberValue p) (numberValue q))
 
   x@(Number Signed sx vx) * y@(Number Signed sy vy) =
-    let size = 2 * max sx sy
-        p = signExtend x size
-        q = signExtend y size
-     in multiply (fromInteger 0) 0 (numberValue p) (numberValue q)
-      where multiply :: Number -> Int -> [Value] -> [Value] -> Number
-            multiply acc _ _ [] = acc
-            multiply acc n a (b:[]) = acc - partial n a b
-            multiply acc n a (b:bs) =
-              multiply (acc + partial n a b) (n + 1) a bs
+    let size = max sx sy
+        double = 2 * size
+        p = signExtend x double
+        q = signExtend y double
 
-            partial :: Int -> [Value] -> Value -> Number
-            partial n a b =
-              shiftExtendL (Number Signed (length a) ((*b) <$> a)) n
+        multiply :: Number -> Int -> [Value] -> [Value] -> Number
+        multiply acc _ _ [] = acc
+        multiply acc n a [b] = acc - partial n a b
+        multiply acc n a (b:bs) =
+          multiply (acc + partial n a b) (n + 1) a bs
+
+        partial :: Int -> [Value] -> Value -> Number
+        partial n a b = take size
+          (shiftExtendL (Number Signed (length a) ((*b) <$> a)) n)
+
+     in take size (multiply (fromInteger 0) 0 (numberValue p) (numberValue q))
 
   x * y = asUnsigned x * asUnsigned y
 
   negate num =
     let size = numberSize num
-     in (toSigned $ complement num)
+     in toSigned (complement num)
        + Number Signed size (One:replicate (size - 1) Zero)
 
   abs num@(Number Signed size val)
@@ -231,10 +241,6 @@ minNumber (Number Unsigned s _) = Number Unsigned s $ replicate s Zero
 minNumber (Number Signed   s _) = Number Signed   s $ One : replicate (s-1) Zero
 maxNumber (Number Unsigned s _) = Number Unsigned s $ replicate s One
 maxNumber (Number Signed   s _) = Number Signed   s $ Zero : replicate (s-1) One
-
-ignoreOverflow :: Number -> Number
-ignoreOverflow (Number sign size val) = let s = size - 1
-                                         in Number sign s $ take s val
 
 decValue :: Integer -> [Value]
 decValue 0 = [Zero]
