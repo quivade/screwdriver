@@ -4,7 +4,11 @@ import           Control.Applicative         ((<$>), (<*>), (<|>))
 import qualified Data.HashSet                as HashSet
 import           Text.Parser.Expression
 import           Text.Parser.Token
+import           Text.Parser.Token.Highlight
 import           Text.Trifecta
+
+import           Language.Verilog.Parser.Number (number)
+import           Language.Verilog.Syntax.Number
 
 vlog2005Ops :: TokenParsing m => IdentifierStyle m
 vlog2005Ops = IdentifierStyle
@@ -16,8 +20,17 @@ vlog2005Ops = IdentifierStyle
   , _styleReservedHighlight     = ReservedOperator
   }
 
+expr :: (Monad m, TokenParsing m) => m Number
+expr = buildExpressionParser vlog2005OpTable term
+     <?> "expression"
+
+term :: (Monad m, TokenParsing m) => m Number
+term = parens expr
+     <|> number
+     <?> "simple expression"
+
 vlog2005ReservedOps :: [String]
-vlog2005ReservedOps = 
+vlog2005ReservedOps =
   -- {} {{}} Concatenation, replication
   [ "+", "-" -- Unary operators
   , "+", "-", "*", "/", "**" -- Arithmetic
@@ -49,7 +62,13 @@ vlog2005ReservedOps =
   ]
 
 vlog2005OpTable :: (Monad m, TokenParsing m) => [[Operator m Number]]
-vlog2005OpTable == [ [
+vlog2005OpTable = [ [prefix "-" negate, prefix "+" id]
+                  -- , [binary ">" gt, binary ">=" gte, binary "<" lt, binary "<=" lte]
+                  ]
 
+binary  name fun = Infix (fun <$ reservedOp name)
+prefix  name fun = Prefix (fun <$ reservedOp name)
+postfix name fun = Postfix (fun <$ reservedOp name)
 
-
+reservedOp :: (Monad m, TokenParsing m) => String -> m ()
+reservedOp = reserve vlog2005Ops

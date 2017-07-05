@@ -16,6 +16,7 @@ library
   hs-source-dirs:      src
   exposed-modules:
     Language.Verilog.Parser
+    Language.Verilog.Parser.Expression
     Language.Verilog.Parser.Identifiers
     Language.Verilog.Parser.Module
     Language.Verilog.Parser.Number
