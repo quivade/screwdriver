@@ -2,7 +2,7 @@ module Language.FIRRTL.Syntax where
 
 type Ident = String
 
-data Circuit = Circtuit
+data Circuit = Circuit
   { _circuitTop :: Ident
   , _circuitModules :: [Module]
   } deriving Show
@@ -25,6 +25,7 @@ data Direction = Input | Output
 data Port = Port
   { _portName :: Ident
   , _portDirection :: Direction
+  , _portType :: Type
   } deriving (Eq, Show)
 
 data Ground
@@ -33,13 +34,21 @@ data Ground
   | Clk
   deriving (Eq, Show)
 
+data Orientation = Direct | Flipped
+  deriving (Eq, Show)
+
+data Field = Field
+  { _fieldOrientation :: Orientation
+  , _fieldName :: Ident
+  , _fieldType :: Type
+  } deriving (Eq, Show)
+
 data Type
   = Unsigned Int
   | Signed Int
   | Clock
-  | Fipped Type
   | Vector Type Int
-  | Bundle [(Ident,Type)]
+  | Bundle [Field]
   -- return type of statements
   | Unit
   deriving (Eq, Show)
@@ -86,8 +95,10 @@ data Prim
 --   } deriving (Eq, Show)
 
 data Expr
+  -- | natural integer
+  = Lit Int
   -- | A ground type literal value
-  = Lit Ground
+  | G Ground
   -- | A conditionally valid expression is expressed as an input expression
   -- guarded with an unsigned single bit valid signal.
   -- It outputs the input expression when the valid signal is high,
@@ -101,13 +112,14 @@ data Expr
   | Ref Ident
   -- | A SubField expression refers to a subelement of an expression with
   -- bundle type.
-  | Field Expr Ident
+  | SubField Expr Expr
   -- | A SubIndex expression refers, by index, to a subelement of an expression
   -- with a Vector type.
-  | Index Expr Int
+  -- It is indistinguichable from SubAccess since natural int is an expression.
+  -- | SubIndex Expr Expr
   -- | A SubAccess expression dynamically refers to a subelement of a
   -- vector-typed expresion using a calculated index.
-  | Access Expr Expr
+  | SubAccess Expr Expr
   -- | All fundamental operations on ground types
   | Op Prim
   deriving (Eq, Show)

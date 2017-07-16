@@ -83,19 +83,19 @@ check (Mux cond a b) = do
 
 check (Ref name) = lookupRef name
 
-check (Field expr name) = do
+check (SubField expr name) = do
   te <- check expr
   case te of
     (Bundle fields) ->
-      let a = filter (\(id, t) -> id == name) fields
+      let a = filter (\field -> _fieldName field == name) fields
           n = length a
           f n | n < 1 = throwError $ NoField name
               | n > 1 = throwError $ MultipleFields name
-              | otherwise = pure $ snd $ head a
+              | otherwise = pure $ _fieldType $ head a
        in f n
     x -> throwError $ NotABundle te name
 
-check (Index expr idx) = do
+check (SubIndex expr idx) = do
   te <- check expr
   case te of
     (Vector t len) ->
@@ -104,10 +104,10 @@ check (Index expr idx) = do
          else throwError $ OutOfBounds idx
     x -> throwError $ NotAVector te
 
-check (Access expr idx) = do
+check (SubAccess expr idx) = do
   ti <- check idx
   case ti of
-    (Unsigned w) -> check (Index expr $ 2 ^ w - 1)
+    (Unsigned w) -> check (SubIndex expr $ 2 ^ w - 1)
     _ -> throwError $ TypeMismatch ti (Unsigned 1)
 
 -- TODO: implement
