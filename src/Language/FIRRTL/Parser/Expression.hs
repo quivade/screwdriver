@@ -1,5 +1,5 @@
 module Language.FIRRTL.Parser.Expression
-  where
+  ( expr ) where
 
 import           Control.Applicative
 import qualified Data.Char as C

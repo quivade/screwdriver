@@ -22,7 +22,6 @@ import           Data.List (foldl', intersperse)
 import           Text.Trifecta
 
 import Language.FIRRTL.Parser.Common
-import Language.FIRRTL.Parser.Declaration
 import Language.FIRRTL.Parser.Expression
 import Language.FIRRTL.Syntax
 

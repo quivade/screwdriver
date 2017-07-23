@@ -96,6 +96,29 @@ identifier = ident firrtlIdents
 reserved :: (Monad m, TokenParsing m) => String -> m ()
 reserved = reserve firrtlIdents
 
+basicType :: (Monad m, TokenParsing m) => m Type
+basicType = Unsigned <$> (reserved "UInt"
+                      *> (fmap . fmap) fromInteger (optional (angles natural)))
+        <|> Signed <$> (reserved "SInt"
+                    *> (fmap . fmap) fromInteger (optional (angles natural)))
+        <|> reserved "Clock" *> pure Clock
+        <|> reserved "flip" *> typeDecl
+        <|> Bundle <$> braces (sepBy1 fieldDecl (symbol ","))
+
+fieldDecl :: (Monad m, TokenParsing m) => m Field
+fieldDecl = Field <$> (option Direct (reserved "flip" *> pure Flipped)
+                      <?> "orientation specifier")
+                  <*> (token identifier <* symbol ":" <?> "field identifier")
+                  <*> (typeDecl <?> "field type")
+
+typeDecl :: (Monad m, TokenParsing m) => m Type
+typeDecl = do
+  t <- basicType
+  size <- optional (fromInteger <$> brackets natural)
+  return $ case size of
+    Just n -> Vector t n
+    Nothing -> t
+
 lookAheadMatches :: (Monad m, LookAheadParsing m) => m a -> m Bool
 lookAheadMatches p = do match <- lookAhead (optional p)
                         pure $ isJust match

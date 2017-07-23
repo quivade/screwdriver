@@ -44,8 +44,8 @@ data Field = Field
   } deriving (Eq, Show)
 
 data Type
-  = Unsigned Int
-  | Signed Int
+  = Unsigned (Maybe Int)
+  | Signed (Maybe Int)
   | Clock
   | Vector Type Int
   | Bundle [Field]
@@ -87,12 +87,6 @@ data Prim
   | Head Expr Int
   | Tail Expr Int
   deriving (Eq, Show)
-
--- data Expression = Expression
---   { _gender :: Gender
---   , _width  :: Int
---   , _term   :: Term
---   } deriving (Eq, Show)
 
 data Expr
   -- | natural integer
