@@ -135,19 +135,35 @@ data Statement
   | Empty
   | Instance Ident Ident
   | Invalid Expr
-  | Mem { _memData :: Type
-        , _memDepth :: Int
-        , _memWriteLatency :: Int
-        , _memReadLatency :: Int
-        , _memReaders :: [Ident]
-        , _memWriters :: [Ident]
-        , _memReadWriters :: [Ident]
-        , _memReadUnderWrite :: Maybe ReadUnderWrite
-        }
+  | Memory Mem
   | Node Ident Expr
   | Partial Expr Expr
   | Print Expr Expr String [Expr]
-  | Reg Type Ident Expr Expr Expr
-  | Stop Int Expr Expr
-  | Wire Type Ident
+  | Reg Ident Type (Maybe Expr) (Maybe Reset)
+  | Stop Expr Expr Int
+  | Wire Ident Type
   deriving (Eq, Show)
+
+data Mem = Mem
+  { _memName :: String
+  , _memData :: Type
+  , _memDepth :: Int
+  , _memWriteLatency :: Int
+  , _memReadLatency :: Int
+  , _memReaders :: [Ident]
+  , _memWriters :: [Ident]
+  , _memReadWriters :: [Ident]
+  , _memReadUnderWrite :: ReadUnderWrite
+  } deriving (Eq, Show)
+
+emptyMem :: Mem
+emptyMem = Mem "" Unit 0 0 0 [] [] [] Undefined
+
+data Reset = Reset Expr Expr
+  deriving (Eq, Show)
+
+data RTLState = RTLState
+  { indentStack :: [Int]
+  , parenStack  :: [Maybe Int]
+  , memoryState :: Mem -- ^ state to parse memory block
+  }

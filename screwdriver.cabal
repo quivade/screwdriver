@@ -19,8 +19,9 @@ library
     Language.FIRRTL.Parser.Common
     Language.FIRRTL.Parser.Declaration
     Language.FIRRTL.Parser.Expression
+    Language.FIRRTL.Parser.Statement
     Language.FIRRTL.Syntax
-    Language.FIRRTL.TypeChecker
+    -- Language.FIRRTL.TypeChecker
      -- Language.Verilog.Parser
     -- Language.Verilog.Parser.Expression
     -- Language.Verilog.Parser.Identifiers
