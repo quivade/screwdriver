@@ -15,6 +15,7 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:
+    Language.FIRRTL.Low
     Language.FIRRTL.Parser
     Language.FIRRTL.Parser.Common
     Language.FIRRTL.Parser.Declaration
