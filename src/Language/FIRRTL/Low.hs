@@ -16,6 +16,8 @@ module Language.FIRRTL.Low
   -- AST overrides
   , Circuit (..)
   , Module (..)
+  , Port (..)
+  , Statement (..)
   , Ctx (Ctx)
   , expandPorts
   , lower
@@ -65,11 +67,9 @@ data Port = Port
   , _portType :: Type
   } deriving (Eq, Show)
 
-instance HasLower AST.Port Port where
-  lower ctx (AST.Port id dir (AST.Unsigned (Just w))) = Port id dir (Unsigned w)
-  lower ctx (AST.Port id dir (AST.Signed (Just w)))   = Port id dir (Signed w)
-  lower ctx (AST.Port id dir AST.Clock)               = Port id dir Clock
-  lower _ _ = error "Ports should have expanded first"
+instance HasLower AST.Type Type =>
+  HasLower AST.Port Port where
+    lower ctx (AST.Port id dir t) = Port id dir (lower ctx t)
 
 -- | only ground types are used
 -- and types have explicit widths
@@ -90,12 +90,18 @@ flipped Flipped Input  = Output
 flipped Flipped Output = Input
 
 expandPorts :: AST.Port -> [AST.Port]
-expandPorts (AST.Port id dir (AST.Vector t len)) = expandVec 0 t []
-  where expandVec :: Int -> AST.Type -> [AST.Port] -> [AST.Port]
-        expandVec n t e
-          | n >= len = e
-          | otherwise = expandVec (n + 1) t
-            (expandPorts (AST.Port (id ++ '$':show n) dir t) ++ e)
+expandPorts (AST.Port id dir (AST.Vector t len)) = concatMap expandPorts $ expandVec 0 t
+  where expandVec :: Int -> AST.Type -> [AST.Port]
+        expandVec n t
+          | n >= len = []
+          | otherwise = AST.Port (id ++ '$':show n) dir t
+                      : expandVec (n + 1) t
+
+  -- where expandVec :: Int -> AST.Type -> [AST.Port] -> [AST.Port]
+  --       expandVec n t e
+  --         | n >= len = e
+  --         | otherwise = expandVec (n + 1) t
+  --           (expandPorts (AST.Port (id ++ '$':show n) dir t) ++ e)
 
 expandPorts (AST.Port id dir (AST.Bundle flds)) = concat $ expandField <$> flds
   where expandField :: AST.Field -> [AST.Port]
@@ -107,8 +113,10 @@ expandPorts p = [p]
 instance HasLower AST.Type Type where
   lower ctx (AST.Unsigned (Just w)) = Unsigned w
   lower ctx (AST.Signed (Just w))   = Signed w
-  lower ctx AST.Clock                = Clock
-  -- lower ctx (Vector t len)       = 
+  lower ctx AST.Clock               = Clock
+  lower _ (AST.Vector _ _) = error "Ports should have expanded first"
+  lower _ (AST.Bundle _) = error "Ports should have expanded first"
+  lower _ _ = error "Type width should be inferred by now"
 
 -- | compared to FIRRTL AST there is no
 -- conditional & partial connect statement
@@ -129,6 +137,26 @@ data Statement
   deriving (Eq, Show)
 
 instance HasLower AST.Statement Statement where
-  lower ctx (AST.Block stmts) = Block (lower ctx <$> stmts)
-  lower ctx AST.Empty = Empty
+  lower ctx (AST.Block [stmt]) = lower ctx stmt
+  lower ctx (AST.Block stmts)  = Block (lower ctx <$> stmts)
+
+  -- expand wires, regs and nodes
+  lower ctx (AST.Wire id w) = case w of
+    (AST.Vector t len) -> Block $ lower ctx <$> expandVec 0 t
+      where expandVec :: Int -> AST.Type -> [AST.Statement]
+            expandVec n t
+              | n >= len = []
+              | otherwise = AST.Wire (id ++ '$':show n) t : expandVec (n + 1) t
+
+    (AST.Bundle flds) -> Block $ lower ctx . expandField <$> flds
+      where expandField :: AST.Field -> AST.Statement
+            expandField (AST.Field orient fid nt) = AST.Wire (id ++ '$':fid) nt
+
+    _ -> Wire id (lower ctx w)
+
+  -- simple transformations
+  lower _ AST.Empty                = Empty
+  lower _ (AST.Instance id1 id2)   = Instance id1 id2
+  lower _ (AST.Print e1 e2 msg es) = Print e1 e2 msg es
+  lower _ (AST.Stop e1 e2 ec)      = Stop e1 e2 ec
   lower ctx _ = undefined
