@@ -1,4 +1,12 @@
+{-# LANGUAGE FlexibleContexts
+           , UndecidableInstances #-}
 module Language.FIRRTL.Syntax where
+
+import           Data.Semigroup            ((<>))
+import qualified Data.Text.Lazy            as T
+import           Data.Text.Prettyprint.Doc
+
+import           Language.FIRRTL.Pretty
 
 type Ident = String
 
@@ -32,7 +40,15 @@ data Ground
   = SInt Int Int
   | UInt Int Int
   | Clk
-  deriving (Eq, Show)
+  deriving Eq
+
+instance Pretty Ground where
+  pretty (SInt w v) = pretty ("SInt" :: T.Text) <> angles (pretty w) <> parens (pretty v)
+  pretty (UInt w v) = pretty ("UInt" :: T.Text) <> angles (pretty w) <> parens (pretty v)
+  pretty Clk = pretty ("Clock" :: T.Text)
+
+instance Show Ground where
+  show = prettyToString
 
 data Orientation = Direct | Flipped
   deriving (Eq, Show)
@@ -116,7 +132,22 @@ data Expr
   | SubAccess Expr Expr
   -- | All fundamental operations on ground types
   | Op Prim
-  deriving (Eq, Show)
+  deriving Eq
+
+instance Pretty Ground => Pretty Expr where
+  pretty (Lit i) = pretty i
+  pretty (G g) = pretty g
+  pretty (Valid cond v) = pretty ("validif" :: T.Text)
+                       <> parens (pretty cond <> comma <+> pretty v)
+  pretty (Mux cond a b) = pretty ("mux" :: T.Text)
+                       <> parens (hsep (punctuate comma (pretty <$> [cond, a, b])))
+  pretty (Ref id) = pretty (T.pack id)
+  pretty (SubField n f) = pretty n <> dot <> pretty f
+  pretty (SubAccess n a) = pretty n <> brackets (pretty a)
+  pretty (Op prim) = undefined
+
+instance Show Expr where
+  show = prettyToString
 
 data ReadUnderWrite
   = Old | New | Undefined
