@@ -8,6 +8,7 @@
 module Language.FIRRTL.Low
   ( -- AST re-exports
     Direction (..)
+  , Expr (..)
   , Ground (..)
   , Ident
   , Orientation (..)
@@ -18,7 +19,6 @@ module Language.FIRRTL.Low
   , Module (..)
   , Port (..)
   , Statement (..)
-  , Ctx (Ctx)
   , expandPorts
   , lower
   ) where
@@ -30,23 +30,23 @@ import           Data.Text.Prettyprint.Doc.Render.Text
 
 import           Language.FIRRTL.Pretty
 import           Language.FIRRTL.Syntax ( Direction (Input, Output)
-                                        , Orientation (Direct, Flipped)
-                                        , Ground (..), Ident, Mem, Reset)
+                                        , Expr (..)
+                                        , Ground (..), Ident
+                                        , Mem, Orientation (Direct, Flipped)
+                                        , Reset)
 import qualified Language.FIRRTL.Syntax as AST
 
-data Ctx = Ctx
-
 class HasLower s a | a -> s where
-  lower :: Ctx -> s -> a
+  lower :: s -> [a]
 
 data Circuit = Circuit
   { _circuitTop :: Ident
   , _circuitModules :: [Module]
   }
 
-instance (HasLower AST.Module Module) =>
-  HasLower AST.Circuit Circuit where
-    lower ctx (AST.Circuit id modules) = Circuit id (lower ctx <$> modules)
+-- instance (HasLower AST.Module Module) =>
+--   HasLower AST.Circuit Circuit where
+--     lower (AST.Circuit id modules) = [Circuit id (concatMap lower modules)]
 
 instance Pretty Module => Pretty Circuit where
   pretty c = pretty ("circuit" :: T.Text)
@@ -67,12 +67,12 @@ data Module
     , _extModulePorts :: [Port]
     }
 
-instance (HasLower AST.Port Port, HasLower AST.Statement Statement) =>
-  HasLower AST.Module Module where
-    lower ctx (AST.ExtModule id ports) =
-      ExtModule id (lower ctx <$> concatMap expandPorts ports)
-    lower ctx (AST.Module id ports stmt) =
-      Module id (lower ctx <$> concatMap expandPorts ports) (lower ctx stmt)
+-- instance (HasLower AST.Port Port, HasLower AST.Statement Statement) =>
+--   HasLower AST.Module Module where
+--     lower (AST.ExtModule id ports) =
+--       [ExtModule id (concatMap lower ports)]
+--     lower (AST.Module id ports stmt) =
+--       [Module id (concatMap lower ports) (lower stmt)]
 
 instance Pretty Module where
   pretty (Module id ports stmt) =
@@ -91,7 +91,26 @@ data Port = Port
 
 instance HasLower AST.Type Type =>
   HasLower AST.Port Port where
-    lower ctx (AST.Port id dir t) = Port id dir (lower ctx t)
+    lower (AST.Port id dir t) =
+      zipWith3 Port (lowerNames t id) (lowerDirection t dir) (lower t)
+
+lowerNames :: AST.Type -> Ident -> [Ident]
+lowerNames (AST.Vector t len) id =
+  let ids = (\n -> id ++ '$': show n) <$> take len (iterate (+1) 0)
+   in concatMap (lowerNames t) ids
+lowerNames (AST.Bundle flds) id =
+  let ids = (\f -> id ++ '$':AST._fieldName f) <$> flds
+      types = AST._fieldType <$> flds
+   in concat $ zipWith lowerNames types ids
+lowerNames _ id = [id]
+
+lowerDirection :: AST.Type -> Direction -> [Direction]
+lowerDirection (AST.Bundle flds) dir =
+  let dirs = (`flipped` dir) . AST._fieldOrientation <$> flds
+      types = AST._fieldType <$> flds
+   in concat $ zipWith lowerDirection types dirs
+lowerDirection (AST.Vector _ len) dir = replicate len dir
+lowerDirection _ dir = [dir]
 
 -- | only ground types are used
 -- and types have explicit widths
@@ -105,35 +124,45 @@ data Type
   | Unit
   deriving (Eq, Show)
 
-data Expr
-  = Lit Int
-  | G Ground
-  | Valid Expr Expr
-  | Mux Expr Expr Expr
-  | Ref Ident
-  | Op AST.Prim
-  deriving Eq
+instance HasLower AST.Type Type where
+  lower (AST.Unsigned (Just size)) = [Unsigned size]
+  lower (AST.Signed (Just size)) = [Signed size]
+  lower AST.Clock = [Clock]
+  lower (AST.Vector t len) = concat $ replicate len (lower t)
+  lower (AST.Bundle flds) = concatMap (lower . AST._fieldType) flds
+  lower AST.Unit = [Unit]
+  lower _ = error "Infer type width first"
 
-instance Pretty Ground => Pretty Expr where
-  pretty (Lit i) = pretty i
-  pretty (G g) = pretty g
-  pretty (Valid cond v) = pretty ("validif" :: T.Text)
-                       <> parens (pretty cond <> comma <+> pretty v)
-  pretty (Mux cond a b) = pretty ("mux" :: T.Text)
-                       <> parens (hsep (punctuate comma (pretty <$> [cond, a, b])))
-  pretty (Ref id) = pretty (T.pack id)
-  pretty (Op prim) = undefined
+-- data Expr
+--   = Lit Int
+--   | G Ground
+--   | Valid Expr Expr
+--   | Mux Expr Expr Expr
+--   | Ref Ident
+--   | Op AST.Prim
+--   deriving Eq
 
-instance Show Expr where
-  show = prettyToString
+-- instance Pretty Ground => Pretty Expr where
+--   pretty (Lit i) = pretty i
+--   pretty (G g) = pretty g
+--   pretty (Valid cond v) = pretty ("validif" :: T.Text)
+--                        <> parens (pretty cond <> comma <+> pretty v)
+--   pretty (Mux cond a b) = pretty ("mux" :: T.Text)
+--                        <> parens (hsep (punctuate comma (pretty <$> [cond, a, b])))
+--   pretty (Ref id) = pretty (T.pack id)
+--   pretty (Op prim) = undefined
 
-instance HasLower AST.Expr Expr where
-  lower _ (AST.Lit n) = Lit n
-  lower _ (AST.G g) = G g
-  lower ctx (AST.Valid t e) = Valid (lower ctx t) (lower ctx e)
-  lower ctx (AST.Mux t a b) = Mux (lower ctx t) (lower ctx a) (lower ctx b)
-  lower _ (AST.Ref id) = Ref id
-  lower _ (AST.Op p) = Op p
+-- instance Show Expr where
+--   show = prettyToString
+
+-- instance HasLower AST.Expr Expr where
+--   lower (AST.SubField n f) = 
+--   lower (AST.Lit n) = [Lit n]
+--   lower (AST.G g) = [G g]
+--   lower (AST.Valid t e) = [Valid (lower ctx t) (lower ctx e)]
+--   lower (AST.Mux t a b) = [Mux (lower ctx t) (lower ctx a) (lower ctx b)]
+--   lower (AST.Ref id) = [Ref id]
+--   lower (AST.Op p) = [Op p]
 
 flipped :: AST.Orientation -> Direction -> Direction
 flipped Direct  Input  = Input
@@ -154,21 +183,6 @@ expandPorts (AST.Port id dir (AST.Vector t len)) = concatMap expandPorts $ expan
   --         | n >= len = e
   --         | otherwise = expandVec (n + 1) t
   --           (expandPorts (AST.Port (id ++ '$':show n) dir t) ++ e)
-
-expandPorts (AST.Port id dir (AST.Bundle flds)) = concat $ expandField <$> flds
-  where expandField :: AST.Field -> [AST.Port]
-        expandField (AST.Field orient fid nt) = expandPorts
-          (AST.Port (id ++ '$':fid) (flipped orient dir) nt)
-
-expandPorts p = [p]
-
-instance HasLower AST.Type Type where
-  lower ctx (AST.Unsigned (Just w)) = Unsigned w
-  lower ctx (AST.Signed (Just w))   = Signed w
-  lower ctx AST.Clock               = Clock
-  lower _ (AST.Vector _ _) = error "Ports should have expanded first"
-  lower _ (AST.Bundle _) = error "Ports should have expanded first"
-  lower _ _ = error "Type width should be inferred by now"
 
 -- | compared to FIRRTL AST there is no
 -- conditional & partial connect statement
@@ -205,36 +219,46 @@ expandField :: (Ident -> AST.Type -> AST.Statement)
 expandField stmt id (AST.Field _ fid t) = stmt (id ++ '$':fid) t
 
 instance HasLower AST.Statement Statement where
-  lower ctx (AST.Block [stmt]) = lower ctx stmt
-  lower ctx (AST.Block stmts)  = Block (lower ctx <$> stmts)
+  -- lower (AST.Block stmts)  = concatMap lower stmts
+  lower (AST.Block stmts)  = [Block $ concatMap lower stmts]
 
-  lower ctx (AST.Cond test cons alt) = undefined
-  -- lower ctx (AST.Connect lhs rhs) = case lhs of
-  --   (AST.Ref id) -> Connect lhs rhs
-  --   (AST.SubField expr name) -> 
-  lower ctx (AST.Invalid expr) = undefined
-  lower ctx (AST.Memory mem) = undefined
-  lower ctx (AST.Partial lhs rhs) = undefined
+--   lower ctx (AST.Cond test cons alt) = undefined
+--   -- lower ctx (AST.Connect lhs rhs) = case lhs of
+--   --   (AST.Ref id) -> Connect lhs rhs
+--   --   (AST.SubField expr name) -> 
+--   lower ctx (AST.Invalid expr) = undefined
+--   lower ctx (AST.Memory mem) = undefined
+  lower (AST.Partial lhs rhs) = case lhs of
+    (Ref id) -> [Connect lhs rhs]
+    (SubAccess expr acc) = case acc of
+      (Lit n) -> appendName <$> [Connect expr rhs]
 
-  -- expand wires, regs and nodes
-  lower ctx (AST.Wire id w) = case w of
-    (AST.Vector t len) -> Block $ lower ctx <$> expandVec AST.Wire id (len - 1) t
-    (AST.Bundle flds) -> Block $ lower ctx . expandField AST.Wire id <$> flds
-    _ -> Wire id (lower ctx w)
+      (G ground) = case ground of
+        (UInt size val) -> appendName <$> [Connect expr rhs]
+        _ -> error "Subaccess expression index must be an Unsigned Integer"
 
-  lower ctx (AST.Reg id r mclk mrst) = case r of
-    (AST.Vector t len) -> Block $ lower ctx
-      <$> expandVec (\id len -> AST.Reg id t mclk mrst) id (len - 1) t
-    (AST.Bundle flds) -> Block
-      $ lower ctx . expandField
-        (\id t -> AST.Reg id t mclk mrst) id <$> flds
-    _ -> Reg id (lower ctx r) (lower ctx <$> mclk) mrst
+    (SubField expr field) -> appendField <$> concatMap lower [Connect expr rhs]
+    _ -> error "Invalid left hand side of partial connect statement"
+    
 
-  lower ctx (AST.Node id expr) = Node id (lower ctx expr)
+--   -- expand wires, regs and nodes
+--   lower ctx (AST.Wire id w) = case w of
+--     (AST.Vector t len) -> Block $ lower ctx <$> expandVec AST.Wire id (len - 1) t
+--     (AST.Bundle flds) -> Block $ lower ctx . expandField AST.Wire id <$> flds
+--     _ -> Wire id (lower ctx w)
+
+--   lower ctx (AST.Reg id r mclk mrst) = case r of
+--     (AST.Vector t len) -> Block $ lower ctx
+--       <$> expandVec (\id len -> AST.Reg id t mclk mrst) id (len - 1) t
+--     (AST.Bundle flds) -> Block
+--       $ lower ctx . expandField
+--         (\id t -> AST.Reg id t mclk mrst) id <$> flds
+--     _ -> Reg id (lower ctx r) (lower ctx <$> mclk) mrst
 
   -- simple transformations
-  lower _ AST.Empty                = Empty
-  lower _ (AST.Instance id1 id2)   = Instance id1 id2
-  lower ctx (AST.Print e1 e2 msg es) = Print (lower ctx e1) (lower ctx e2)
-                                        msg (lower ctx <$> es)
-  lower ctx (AST.Stop e1 e2 ec)      = Stop (lower ctx e1) (lower ctx e2) ec
+  lower stmt = [stmt]
+  -- lower (AST.Node id expr)       = [Node id expr]
+  -- lower AST.Empty                = [Empty]
+  -- lower (AST.Instance id1 id2)   = [Instance id1 id2]
+  -- lower (AST.Print e1 e2 msg es) = [Print e1 e2 msg es]
+  -- lower (AST.Stop e1 e2 ec)      = [Stop e1 e2 ec]
