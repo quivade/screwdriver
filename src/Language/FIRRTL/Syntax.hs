@@ -1,6 +1,8 @@
 module Language.FIRRTL.Syntax where
 
-type Ident = String
+import Data.Text (Text)
+
+type Ident = Text
 
 data Circuit = Circuit
   { _circuitTop :: Ident
@@ -106,7 +108,7 @@ data Expr
   | Ref Ident
   -- | A SubField expression refers to a subelement of an expression with
   -- bundle type.
-  | SubField Expr Expr
+  | SubField Expr Ident
   -- | A SubIndex expression refers, by index, to a subelement of an expression
   -- with a Vector type.
   -- It is indistinguichable from SubAccess since natural int is an expression.
@@ -139,7 +141,7 @@ data Statement
   deriving (Eq, Show)
 
 data Mem = Mem
-  { _memName :: String
+  { _memName :: Ident
   , _memData :: Type
   , _memDepth :: Int
   , _memWriteLatency :: Int

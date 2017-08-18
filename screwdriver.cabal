@@ -22,7 +22,7 @@ library
     Language.FIRRTL.Parser.Statement
     Language.FIRRTL.Syntax
     -- Language.FIRRTL.TypeChecker
-     -- Language.Verilog.Parser
+    -- Language.Verilog.Parser
     -- Language.Verilog.Parser.Expression
     -- Language.Verilog.Parser.Identifiers
     -- Language.Verilog.Parser.Module

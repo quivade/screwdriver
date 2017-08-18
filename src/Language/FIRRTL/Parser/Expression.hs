@@ -4,6 +4,7 @@ module Language.FIRRTL.Parser.Expression
 import           Control.Applicative
 import qualified Data.Char as C
 import           Data.List (foldl', intersperse)
+import           Data.Text (Text, append, unpack)
 import           Text.Parser.Expression
 import           Text.Parser.Token hiding (binary, octal, hexadecimal)
 import           Text.Trifecta hiding (octal, hexadecimal, integer)
@@ -20,7 +21,7 @@ sub e = do
   case msub of
     (Just c) ->
       sub =<< if c == '.'
-        then SubField e <$> ref
+        then SubField e <$> identifier
         else SubAccess e <$> (expr <* symbolic ']')
     Nothing -> pure e
 
@@ -120,32 +121,32 @@ valid = do
 --   pure $ Op a
 
 twoExpr :: (Monad m, TokenParsing m)
-        => String -> (Expr -> Expr -> Prim) -> m Prim
+        => Text -> (Expr -> Expr -> Prim) -> m Prim
 twoExpr keyword cons = cons
   <$> (reserved keyword *> symbolic '(' *> expr <* comma)
   <*> (expr <* symbolic ')')
-  <?> (keyword ++ " primitive operation")
+  <?> unpack (append keyword " primitive operation")
 
 oneExpr :: (Monad m, TokenParsing m)
-        => String -> (Expr -> Prim) -> m Prim
+        => Text -> (Expr -> Prim) -> m Prim
 oneExpr keyword cons = cons
   <$> (reserved keyword *> parens expr)
-  <?> (keyword ++ " primitive operation")
+  <?> unpack (append keyword " primitive operation")
 
 intExpr :: (Monad m, TokenParsing m)
-        => String -> (Expr -> Int -> Prim) -> m Prim
+        => Text -> (Expr -> Int -> Prim) -> m Prim
 intExpr keyword cons = cons
   <$> (reserved keyword *> symbolic '(' *> expr <* comma)
   <*> (fromInteger <$> natural <* symbolic ')')
-  <?> (keyword ++ " primitive operation")
+  <?> unpack (append keyword " primitive operation")
 
 twoIntExpr :: (Monad m, TokenParsing m)
-        => String -> (Expr -> Int -> Int -> Prim) -> m Prim
+           => Text -> (Expr -> Int -> Int -> Prim) -> m Prim
 twoIntExpr keyword cons = cons
   <$> (reserved keyword *> symbolic '(' *> expr <* comma)
   <*> (fromInteger <$> natural <* comma)
   <*> (fromInteger <$> natural <* symbolic ')')
-  <?> (keyword ++ " primitive operation")
+  <?> unpack (append keyword " primitive operation")
 
 op :: (Monad m, TokenParsing m) => m Expr
 op = Op

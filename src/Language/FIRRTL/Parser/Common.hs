@@ -7,6 +7,7 @@ import           Control.Monad.State.Strict
 import qualified Data.HashSet                as HashSet
 import           Data.Maybe                  (isJust, isNothing)
 import           Data.Monoid                 ((<>))
+import           Data.Text                   (Text)
 import           Text.Parser.LookAhead
 import           Text.Parser.Token.Highlight
 import           Text.Trifecta
@@ -93,8 +94,8 @@ firrtlPrimOps = HashSet.fromList
 identifier :: (Monad m, TokenParsing m) => m Ident
 identifier = ident firrtlIdents
 
-reserved :: (Monad m, TokenParsing m) => String -> m ()
-reserved = reserve firrtlIdents
+reserved :: (Monad m, TokenParsing m) => Text -> m ()
+reserved = reserveText firrtlIdents
 
 basicType :: (Monad m, TokenParsing m) => m Type
 basicType = Unsigned <$> (reserved "UInt"

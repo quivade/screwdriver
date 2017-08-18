@@ -19,6 +19,7 @@ import           Control.Applicative hiding (empty)
 import           Control.Monad.State.Strict
 import qualified Data.Char as C
 import           Data.List (foldl', intersperse)
+import           Data.Text (Text)
 import           Text.Trifecta
 
 import Language.FIRRTL.Parser.Common
@@ -124,7 +125,7 @@ memory = do
                 <|> memReadWriter
                 <|> memReadUnderWrite
 
-memParser :: String -> RTLParser a -> RTLParser a
+memParser :: Text -> RTLParser a -> RTLParser a
 memParser f p = reserved f *> reserved "=>" *> p
 
 memDataType :: RTLParser ()
