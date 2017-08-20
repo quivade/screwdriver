@@ -1,13 +1,26 @@
+{-# LANGUAGE UndecidableInstances #-}
 module Language.FIRRTL.Syntax where
 
-import Data.Text (Text)
+import Data.Semigroup ((<>))
+import Data.Text      (Text)
+import Data.Text.Prettyprint.Doc
+
+import Language.FIRRTL.Pretty
 
 type Ident = Text
 
 data Circuit = Circuit
   { _circuitTop :: Ident
   , _circuitModules :: [Module]
-  } deriving Show
+  }
+
+instance Pretty Module => Pretty Circuit where
+  pretty c = pretty ("circuit" :: Text)
+         <+> (pretty . _circuitTop) c <> colon <> hardline
+         <> indent 2 (vsep (pretty <$> _circuitModules c))
+
+instance Show Circuit where
+  show = prettyToString
 
 data Module
   = Module
@@ -19,7 +32,15 @@ data Module
     { _extModuleName :: Ident
     , _extModulePorts :: [Port]
     }
-    deriving Show
+
+instance Pretty Module where
+  pretty (Module id ports stmt) =
+    pretty ("module" :: Text) <+> pretty id <> colon <> hardline
+  pretty (ExtModule id ports) =
+    pretty ("module" :: Text) <+> pretty id <> colon <> hardline
+
+instance Show Module where
+  show = prettyToString
 
 data Direction = Input | Output
   deriving (Eq, Show)
@@ -34,7 +55,15 @@ data Ground
   = SInt Int Int
   | UInt Int Int
   | Clk
-  deriving (Eq, Show)
+  deriving Eq
+
+instance Pretty Ground where
+  pretty (SInt w v) = pretty ("SInt" :: Text) <> angles (pretty w) <> parens (pretty v)
+  pretty (UInt w v) = pretty ("UInt" :: Text) <> angles (pretty w) <> parens (pretty v)
+  pretty Clk = pretty ("Clock" :: Text)
+
+instance Show Ground where
+  show = prettyToString
 
 data Orientation = Direct | Flipped
   deriving (Eq, Show)
@@ -118,7 +147,22 @@ data Expr
   | SubAccess Expr Expr
   -- | All fundamental operations on ground types
   | Op Prim
-  deriving (Eq, Show)
+  deriving Eq
+
+instance Pretty Ground => Pretty Expr where
+  pretty (Lit i) = pretty i
+  pretty (G g) = pretty g
+  pretty (Valid cond v) = pretty ("validif" :: Text)
+                       <> parens (pretty cond <> comma <+> pretty v)
+  pretty (Mux cond a b) = pretty ("mux" :: Text)
+                       <> parens (hsep (punctuate comma (pretty <$> [cond, a, b])))
+  pretty (Ref id) = pretty id
+  pretty (SubField n f) = pretty n <> dot <> pretty f
+  pretty (SubAccess n a) = pretty n <> brackets (pretty a)
+  pretty (Op prim) = undefined
+
+instance Show Expr where
+  show = prettyToString
 
 data ReadUnderWrite
   = Old | New | Undefined
@@ -138,7 +182,13 @@ data Statement
   | Reg Ident Type (Maybe Expr) (Maybe Reset)
   | Stop Expr Expr Int
   | Wire Ident Type
-  deriving (Eq, Show)
+  deriving Eq
+
+instance Pretty Expr => Pretty Statement where
+  pretty (Connect lhs rhs) = pretty lhs <+> "<=" <+> pretty rhs
+
+instance Show Statement where
+  show = prettyToString
 
 data Mem = Mem
   { _memName :: Ident
