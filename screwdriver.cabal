@@ -15,14 +15,20 @@ cabal-version:       >=1.10
 library
   hs-source-dirs:      src
   exposed-modules:
-    Language.FIRRTL.Parser
-    Language.FIRRTL.Parser.Common
-    Language.FIRRTL.Parser.Declaration
-    Language.FIRRTL.Parser.Expression
-    Language.FIRRTL.Parser.Statement
+    -- Language.FIRRTL.Parser
+    -- Language.FIRRTL.Parser.Common
+    -- Language.FIRRTL.Parser.Declaration
+    -- Language.FIRRTL.Parser.Expression
+    -- Language.FIRRTL.Parser.Statement
+    Language.FIRRTL.Annotations
     Language.FIRRTL.Pretty
     Language.FIRRTL.Syntax
-    -- Language.FIRRTL.TypeChecker
+    Language.FIRRTL.Syntax.Common
+    Language.FIRRTL.Syntax.Expr
+    Language.FIRRTL.Syntax.Recursion
+    Language.FIRRTL.Types
+    Language.FIRRTL.TypeChecker
+    Language.FIRRTL.Unification
     -- Language.Verilog.Parser
     -- Language.Verilog.Parser.Expression
     -- Language.Verilog.Parser.Identifiers
@@ -35,8 +41,15 @@ library
 
   default-language:    Haskell2010
   default-extensions:
-      FlexibleContexts
+      DeriveFunctor
+    , DeriveTraversable
+    , FlexibleContexts
+    , GADTs
+    , KindSignatures
+    , MultiParamTypeClasses
     , OverloadedStrings
+    , RankNTypes
+    , StandaloneDeriving
   build-depends:
       base                 >= 4.7  && < 5
     , mtl                  >= 2.2  && < 2.3
@@ -44,6 +57,7 @@ library
     , prettyprinter        >= 1.1  && < 1.2
     , text                 >= 1.2  && < 1.3
     , trifecta             >= 1.6  && < 1.7
+    , unification-fd       >= 0.10 && < 0.11
     , unordered-containers >= 0.2  && < 0.3
 
 -- executable screwdriver

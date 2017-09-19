@@ -15,7 +15,13 @@ import           Text.Trifecta.Delta
 
 import Language.FIRRTL.Syntax
 
-type RTLParser = StateT RTLState RTLInnerParser
+data ParserState = ParserState
+  { indentStack :: [Int]
+  , parenStack  :: [Maybe Int]
+  , memoryState :: Mem -- ^ state to parse memory block
+  }
+
+type RTLParser = StateT ParserState RTLInnerParser
 
 newtype RTLInnerParser a = RTLInnerParser { runInnerParser :: Parser a }
   deriving (Applicative, Alternative, Functor, Monad, MonadPlus, Monoid,
@@ -24,7 +30,7 @@ newtype RTLInnerParser a = RTLInnerParser { runInnerParser :: Parser a }
 deriving instance Parsing RTLInnerParser
 
 testParser :: (MonadIO m, Show a) => RTLParser a -> String -> m ()
-testParser p = parseTest (runInnerParser (evalStateT p (RTLState [] [] emptyMem)))
+testParser p = parseTest (runInnerParser (evalStateT p (ParserState [] [] emptyMem)))
 
 firrtlIdents :: TokenParsing m => IdentifierStyle m
 firrtlIdents = IdentifierStyle

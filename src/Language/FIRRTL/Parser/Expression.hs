@@ -27,7 +27,7 @@ sub e = do
 
 term :: (Monad m, TokenParsing m) => m Expr
 term = (Lit <$> (fromInteger <$> natural) <?> "natural integer")
-   <|> (G <$> constant <?> "ground value")
+   -- <|> (G <$> constant <?> "ground value")
    <|> ref
    <|> mux
    <|> valid
