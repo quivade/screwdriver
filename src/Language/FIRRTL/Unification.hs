@@ -27,7 +27,7 @@ import Language.FIRRTL.Syntax.Types
 
 type Type' v = UTerm TypeF v
 type Expr' v = AnnFix (Type' v) ExprF
-type Expr1 = Fix ExprF
+-- type Expr1 = Fix ExprF
 
 data Error t v
   = UndefinedVar Ident v

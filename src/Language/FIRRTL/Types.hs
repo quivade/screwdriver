@@ -16,13 +16,19 @@ module Language.FIRRTL.Types
   ) where
 
 import Control.Unification (UTerm (..))
+import Language.FIRRTL.Syntax (Ident)
 
 -- | Ground types
 data Ground
-  = Unsigned Int -- ^ Unsigned integer with bit width
-  | Signed   Int -- ^ Signed integer with bit width
-  | Clock        -- ^ Clock
+  = Unsigned (Maybe Int) -- ^ Unsigned integer with bit width
+  | Signed   (Maybe Int) -- ^ Signed integer with bit width
+  | Clock                -- ^ Clock
   deriving (Eq, Show)
+
+-- a -> b -> c
+-- UInt 2 -> UInt 2 -> SInt 4
+-- (UInt a). a -> b -> -> b
+data Scheme = Forall [TVar] Type
 
 -- | Firrtl types
 data TypeF t

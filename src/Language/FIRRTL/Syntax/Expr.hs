@@ -82,4 +82,4 @@ instance Traversable ExprF where
   traverse f (Binary op p q) = Binary op <$> f p <*> f q
   traverse f (Ternary op p q r) = Ternary op <$> f p <*> f q <*> f r
 
-type Expr = AnnFix Type ExprF
+type Expr = AnnFix (Maybe Type) ExprF
