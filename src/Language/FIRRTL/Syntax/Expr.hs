@@ -9,13 +9,15 @@ This module provides FIRRTL Expr AST definitions.
 |-}
 module Language.FIRRTL.Syntax.Expr
   ( Expr
+  , PolyTypedExpr
+  , TypedExpr
   , ExprF
   ) where
 
-import Language.FIRRTL.Syntax.Annotation
+import Language.FIRRTL.Annotations
 import Language.FIRRTL.Syntax.Common
-import Language.FIRRTL.Syntax.Recursion
-import Language.FIRRTL.Syntax.Types
+import Language.FIRRTL.Recursion
+import Language.FIRRTL.Types         (PolyType, Type)
 
 data UnaryOp
   = AndR | AsClock | AsSigned | AsUnsigned
@@ -25,7 +27,7 @@ data UnaryOp
 data BinaryOp
   -- | op expr expr
   = Add | And | Cat | Div | DShl | DShr | Eq | Geq | Gt
-    | Leq | Lt | Mod | Mul | Neq | Or | Sub | Valid
+  | Leq | Lt | Mod | Mul | Neq | Or | Sub | Valid
   -- | op expr int
   | Head | Pad | Shl | Shr | Tail
   deriving Eq
@@ -74,12 +76,20 @@ instance Foldable ExprF where
   foldMap f (Ternary _ p q r) = f p `mappend` f q `mappend` f r
 
 instance Traversable ExprF where
-  traverse _ (Lit l) = pure (Lit l)
-  traverse _ (Ref id) = pure (Ref id)
-  traverse f (SubField p id) = SubField <$> f p <*> pure id
-  traverse f (SubAccess p q) = SubAccess <$> f p <*> f q
-  traverse f (Unary op p) = Unary op <$> f p
-  traverse f (Binary op p q) = Binary op <$> f p <*> f q
-  traverse f (Ternary op p q r) = Ternary op <$> f p <*> f q <*> f r
+  -- traverse :: Functor f => (a -> f b) -> t a -> f (t b)
+  traverse g (Lit l) = pure $ Lit l 
+  traverse g (Ref id) = pure $ Ref id
+  traverse g (SubField p id) = SubField <$> g p
+                                        <*> pure id
+  traverse g (SubAccess p q) = SubAccess <$> g p
+                                         <*> g q
+  traverse g (Unary op p) = Unary op <$> g p
+  traverse g (Binary op p q) = Binary op <$> g p
+                                         <*> g q
+  traverse g (Ternary op p q r) = Ternary op <$> g p
+                                             <*> g q
+                                             <*> g r
 
-type Expr = AnnFix (Maybe Type) ExprF
+type Expr          = Fix ExprF
+type TypedExpr     = AnnFix (Maybe Type) ExprF
+type PolyTypedExpr = AnnFix PolyType ExprF

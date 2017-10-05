@@ -8,16 +8,15 @@ Portability : POSIX
 This module provides FIRRTL Abstract Syntax Tree.
 |-}
 module Language.FIRRTL.Syntax
-  ( Expr (..)
-  , ExprF
-  , Type (..)
-  , TypeF
+  ( ExprF
+  , Expr
+  , PolyTypedExpr
+  , TypedExpr
   , Ident
   ) where
 
 import Language.FIRRTL.Syntax.Common
 import Language.FIRRTL.Syntax.Expr
-import Language.FIRRTL.Syntax.Types
 
 -- data Circuit = Circuit
 --   { _circuitTop :: Ident
