@@ -18,7 +18,7 @@ import Data.Foldable    (Foldable, foldMap)
 import Data.Text        (Text)
 import Data.Traversable (Traversable, traverse)
 
-import Language.FIRRTL.Syntax.Recursion
+import Language.FIRRTL.Recursion
 
 -- | Annotation Transformer (?)
 -- a - annotation object
