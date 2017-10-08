@@ -8,10 +8,7 @@ Portability : POSIX
 This module provides FIRRTL Abstract Syntax Tree.
 |-}
 module Language.FIRRTL.Syntax
-  ( ExprF
-  , Expr
-  , PolyTypedExpr
-  , TypedExpr
+  ( module Language.FIRRTL.Syntax.Expr
   , Ident
   ) where
 

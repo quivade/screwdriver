@@ -8,10 +8,14 @@ Portability : POSIX
 This module provides FIRRTL Expr AST definitions.
 |-}
 module Language.FIRRTL.Syntax.Expr
-  ( Expr
+  ( UnaryOp (..)
+  , BinaryOp (..)
+  , TernaryOp (..)
+  , Literal (..)
+  , Expr
   , PolyTypedExpr
   , TypedExpr
-  , ExprF
+  , ExprF (..)
   ) where
 
 import Language.FIRRTL.Annotations

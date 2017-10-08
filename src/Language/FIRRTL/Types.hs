@@ -16,6 +16,9 @@ module Language.FIRRTL.Types
   , Ground (..)
   , Orientation (..)
   , poly
+  , ground
+  , vector
+  , bundle
   ) where
 
 import Control.Unification           (UTerm (..), Variable (..))
@@ -29,6 +32,7 @@ data Ground
   = Unsigned (Maybe Int) -- ^ Unsigned integer with bit width
   | Signed   (Maybe Int) -- ^ Signed integer with bit width
   | Clock                -- ^ Clock
+  | Natural              -- ^ Non negative integer
   deriving (Eq, Show)
 
 -- data Scheme where

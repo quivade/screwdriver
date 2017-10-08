@@ -14,6 +14,7 @@ import Control.Monad.State.Strict
 import Data.HashMap.Lazy
 
 import Language.FIRRTL.Syntax
+import Language.FIRRTL.Types
 
 newtype FreshT m a = Fresh { runFreshT :: StateT Integer m a }
 

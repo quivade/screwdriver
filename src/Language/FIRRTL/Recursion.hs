@@ -1,5 +1,6 @@
-{-# language StandaloneDeriving #-}
-{-# language UndecidableInstances #-}
+{-# language
+      StandaloneDeriving
+    , UndecidableInstances #-}
 {-|
 Copyright   : (c) Quivade, 2017
 License     : GPL-3
@@ -14,14 +15,16 @@ Written for exercise, could possibly be replaced by
 module Language.FIRRTL.Recursion
   ( Fix (..)
   , unfix
+  , ana
   , cata
   , hmap
   , ymap
+  , anaM
+  , cataM
   , hmapM
   , ymapM
   , Algebra
   , Coalgebra
-  , ana
   -- , TFix (..)
   ) where
 
@@ -54,6 +57,10 @@ type Coalgebra f a = a -> f a
 -- * catamorphism
 cata :: Functor f => Algebra f a -> Fix f -> a
 cata f = f  . fmap (cata f) . unfix
+
+cataM :: (Traversable f, Monad m) => (f a -> m a) -> Fix f -> m a
+cataM f = self
+  where self = f <=< (mapM self . unfix)
 
 -- * anamorphism
 ana :: Functor f => Coalgebra f a -> a -> Fix f

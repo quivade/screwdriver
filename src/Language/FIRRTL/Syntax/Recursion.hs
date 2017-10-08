@@ -1,8 +1,7 @@
-{-# LANGUAGE
-      StandaloneDeriving,
-      UndecidableInstances,
-      Rank2Types
-#-}
+{-# language
+      StandaloneDeriving
+    , UndecidableInstances
+    , Rank2Types #-}
 {-|
 Copyright   : (c) Quivade, 2017
 License     : GPL-3

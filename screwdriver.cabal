@@ -25,7 +25,7 @@ library
     Language.FIRRTL.Syntax
     Language.FIRRTL.Syntax.Common
     Language.FIRRTL.Syntax.Expr
-    Language.FIRRTL.Syntax.Recursion
+    Language.FIRRTL.Recursion
     Language.FIRRTL.Types
     Language.FIRRTL.TypeChecker
     Language.FIRRTL.Unification
