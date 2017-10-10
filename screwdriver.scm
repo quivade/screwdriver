@@ -10,7 +10,9 @@
   (source (local-file "./."))
   (build-system haskell-build-system)
   (native-inputs
-  `(("cabal-install", cabal-install)))
+  `(("cabal-install" ,cabal-install)
+    ;; ("ghc-hlint@1.9.35" ,ghc-hlint)
+    ))
   (inputs
     `(("ghc-mtl" ,ghc-mtl)
       ("ghc-parsers" ,ghc-parsers)
@@ -21,9 +23,11 @@
       ("ghc-unordered-containers"
       ,ghc-unordered-containers)
       ("ghc-tasty" ,ghc-tasty)
+      ("ghc-tasty-hunit" ,ghc-tasty-hunit)
       ("ghc-tasty-quickcheck" ,ghc-tasty-quickcheck)
       ("ghc-tasty-smallcheck" ,ghc-tasty-smallcheck)
       ("ghc-test-invariant" ,ghc-test-invariant)
+      ("ghc-transformers" ,ghc-transformers)
       ("ghc-quickcheck" ,ghc-quickcheck)
       ("ghc-smallcheck" ,ghc-smallcheck)))
   (home-page

@@ -13,14 +13,21 @@ This module provides FIRRTL Types definitions.
 module Language.FIRRTL.Unification
   where
 
-import           Control.Monad.Error.Class  (MonadError, throwError)
-import           Control.Monad.Trans        (MonadTrans, lift)
-import           Control.Unification        (BindingMonad (..), unify)
-import           Control.Unification.IntVar (IntVar)
-import           Control.Unification.Types  (Fallible (..), UFailure (..), UTerm (..))
-import qualified Data.HashMap.Strict        as Map
-import           Data.HashMap.Strict        (HashMap)
-import           Data.Text                  (Text)
+import           Control.Monad.Error.Class    (MonadError, throwError)
+import           Control.Monad.Trans          (MonadTrans, lift)
+import           Control.Monad.Trans.Except   (ExceptT, runExceptT)
+import           Control.Unification          (BindingMonad (..), applyBindingsAll, unify)
+import           Control.Unification.IntVar   (IntBindingT, IntVar)
+import           Control.Unification.Types    ( Fallible (..)
+                                              , UFailure (..)
+                                              , Unifiable (..)
+                                              , UTerm (..)
+                                              )
+import           Data.Foldable                (toList)
+import           Data.Functor.Identity        (Identity)
+import qualified Data.HashMap.Strict          as Map
+import           Data.HashMap.Strict          (HashMap)
+import           Data.Text                    (Text)
 
 import Language.FIRRTL.Annotations
 import Language.FIRRTL.Recursion
@@ -41,22 +48,22 @@ instance Fallible TypeF IntVar (Error TypeF IntVar) where
 --   occursFailure a b = UFailure $ occursFailure a b
 --   mismatchFailure a b = UFailure $ mismatchFailure a b
 
--- instance Unifable TypeF where
---   zipMatch :: TypeF a -> TypeF a -> Maybe (t Either a (a, a))
-  -- zipMatch (Ground g) (Ground h) = match g h
-  --   where match a b
-  --   | a == Unsigned (Just n) && b == Unsigned (Just m) =
-  --       if n == m then Just $ Unsigned (Just n) else Nothing
-  --   | a == Unsigned Nothing && b == Unsigned mw = Just $ Unsigned mw
-  --   | a == Unsigned mw && b == Unsigned Nothing = Just $ Unsigned mw
-  --   | a == Signed (Just n) && b == Signed (Just m) =
-  --       if n == m then Just $ Signed (Just n) else Nothing
-  --   | a == Signed Nothing && b == Signed mw = Just $ Signed mw
-  --   | a == Signed mw && b == Signed Nothing = Just $ Signed mw
-  --   | a == Clock && b == Clock == Just Clock
-  --   | otherwise = Nothing
-  -- -- zipMatch (Vector g n) (Vector h m) =
-  --  zipMatch _ _ = Nothing
+instance Unifiable TypeF where
+  -- zipMatch :: TypeF a -> TypeF a -> Maybe (t Either a (a, a))
+  zipMatch (Ground g) (Ground h) = Ground <$> match g h where
+    match (Unsigned (Just n)) (Unsigned (Just m)) =
+      if n == m then Just $ Unsigned (Just n) else Nothing
+    match (Unsigned Nothing) (Unsigned mw)      = Just $ Unsigned mw
+    match (Unsigned mw)      (Unsigned Nothing) = Just $ Unsigned mw
+    match (Signed (Just n)) (Signed (Just m)) =
+      if n == m then Just $ Signed (Just n) else Nothing
+    match (Signed Nothing) (Signed mw) = Just $ Signed mw
+    match (Signed mw) (Signed Nothing) = Just $ Signed mw
+    match Clock Clock = Just Clock
+    match _ _ = Nothing
+    -- |
+  -- zipMatch (Vector g n) (Vector h m) =
+  zipMatch _ _ = Nothing
 
 allocateVar :: forall m. BindingMonad TypeF IntVar m
             => Maybe Type -> m PolyType
@@ -114,3 +121,16 @@ constrain env = cataM alg
         ty <- exprType expr
         ty' <- unify polytype ty
         annotate <$> (unify polytype ty) <*> pure expr
+
+allTypes :: PolyTypedExpr -> [PolyType]
+allTypes = cata alg
+  where alg :: Ann PolyType ExprF [PolyType] -> [PolyType]
+        alg = concat . toList
+
+typecheck :: TypedExpr
+          -> ExceptT (Error TypeF IntVar) (IntBindingT TypeF Identity) PolyTypedExpr
+typecheck expr = do
+  pexpr <- lift $ genTypeVars expr
+  constrained <- constrain mempty pexpr
+  applyBindingsAll (allTypes pexpr)
+  pure pexpr
