@@ -62,8 +62,16 @@ instance Unifiable TypeF where
     match Clock Clock = Just Clock
     match _ _ = Nothing
     -- |
-  -- zipMatch (Vector g n) (Vector h m) =
+  zipMatch (Vector p n) (Vector q m) = if n /= m then Nothing
+    else Just $ Vector (Right (p, q)) n
+  zipMatch (Bundle fa) (Bundle fb) =
+    Bundle (fmap . fmap) $ zipMatch fa fb
   zipMatch _ _ = Nothing
+
+instance Unifiable Field where
+  zipMatch (Field ol nl tl) (Field or nr tr)
+    | ol == or && nl == nr = Just . Field $ ol nr (Right (tl, tr))
+    | otherwise = Nothing
 
 allocateVar :: forall m. BindingMonad TypeF IntVar m
             => Maybe Type -> m PolyType

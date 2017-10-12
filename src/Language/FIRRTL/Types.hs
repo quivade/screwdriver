@@ -48,10 +48,10 @@ data TypeF t
   deriving (Functor, Foldable, Traversable, Eq, Show)
 
 -- | Single field in the bundle type
-data Field f = Field
+data Field t = Field
   { _fieldOrientation :: Orientation
   , _fieldName :: Ident
-  , _fieldType :: f
+  , _fieldType :: t
   } deriving (Functor, Foldable, Traversable, Eq, Show)
 
 -- | Fiels orientation

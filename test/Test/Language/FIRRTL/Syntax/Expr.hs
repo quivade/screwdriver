@@ -23,11 +23,10 @@ sint = Lit . SInt
 constExpr :: ExprF TypedExpr -> Maybe Type -> TypedExpr
 constExpr e mt = annotate mt e
 
-
 tests = testCase "unify single literal value" $
   either
     (assertFailure . show)
-    (\p -> do putStrLn $ show p; assertBool "typecheck completed" True)
+    (\p -> assertBool "typecheck completed" True)
     (runIdentity
       $ evalIntBindingT
       $ runExceptT
