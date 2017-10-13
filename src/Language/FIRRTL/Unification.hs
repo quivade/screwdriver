@@ -64,15 +64,13 @@ instance Unifiable TypeF where
     -- |
   zipMatch (Vector p n) (Vector q m) = if n /= m then Nothing
     else Just $ Vector (Right (p, q)) n
-  zipMatch (Bundle fa) (Bundle fb) =
-    Bundle <$> matchList fa fb
+  zipMatch (Bundle fa) (Bundle fb) = Bundle <$> matchList fa fb
     where
       matchList la lb
         | length la == length lb =
-          sequence . map (uncurry zipMatch) $ zip la lb
+          sequence $ zipWith zipMatch la lb
         | otherwise = Nothing
   zipMatch _ _ = Nothing
-
 
 instance Unifiable Field where
   zipMatch (Field ol nl tl) (Field or nr tr)
