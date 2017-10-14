@@ -48,7 +48,6 @@ data Literal
 
 data ExprF r
   = Lit Literal -- ^ Ground Type or natural integer
-  | Var Ident   -- ^ introduce new name
   | Ref Ident   -- ^ reference to a node/var
   -- moved to appropriate arity operations
   -- | Valid r r
@@ -68,7 +67,6 @@ instance Functor ExprF where
   fmap f (Ternary op a b c) = Ternary op (f a) (f b) (f c)
   fmap _ (Lit l) = Lit l
   fmap _ (Ref i) = Ref i
-  fmap _ (Var i) = Var i
 
 instance Foldable ExprF where
   foldMap f (Lit l) = mempty
