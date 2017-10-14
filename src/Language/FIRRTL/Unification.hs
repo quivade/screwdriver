@@ -13,6 +13,7 @@ This module provides FIRRTL Types definitions.
 module Language.FIRRTL.Unification
   where
 
+import           Control.Monad                (zipWithM)
 import           Control.Monad.Error.Class    (MonadError, throwError)
 import           Control.Monad.Trans          (MonadTrans, lift)
 import           Control.Monad.Trans.Except   (ExceptT, runExceptT)
@@ -27,6 +28,8 @@ import           Data.Foldable                (toList)
 import           Data.Functor.Identity        (Identity)
 import qualified Data.HashMap.Strict          as Map
 import           Data.HashMap.Strict          (HashMap)
+import           Data.Monoid                  (Monoid(mappend, mempty))
+import           Data.Semigroup               (Semigroup((<>)))
 import           Data.Text                    (Text)
 
 import Language.FIRRTL.Annotations
@@ -67,8 +70,7 @@ instance Unifiable TypeF where
   zipMatch (Bundle fa) (Bundle fb) = Bundle <$> matchList fa fb
     where
       matchList la lb
-        | length la == length lb =
-          sequence $ zipWith zipMatch la lb
+        | length la == length lb = zipWithM zipMatch la lb
         | otherwise = Nothing
   zipMatch _ _ = Nothing
 
@@ -91,16 +93,26 @@ genTypeVars = cataM alg
         alg (AnnF mtype expr) = annotate <$> allocateVar mtype
                                          <*> pure expr
 
-type Environment = HashMap Ident PolyType
+newtype Environment = Env { unEnv :: HashMap Ident PolyType }
 
-extend :: Environment -> (Ident, PolyType) -> Environment
-extend env (id, ptype) = Map.insert id ptype env
+instance Semigroup Environment where
+  (<>) (Env ml) (Env mr) = Env $ Map.union ml mr
+
+instance Monoid Environment where
+  mappend = (<>)
+  mempty = Env Map.empty
+
+singleton :: Ident -> PolyType -> Environment
+singleton id = Env . Map.singleton id
+
+insert :: Ident -> PolyType -> Environment -> Environment
+insert id ptype (Env e) = Env $ Map.insert id ptype e
 
 lookupRef :: forall em m. ( BindingMonad TypeF IntVar m, Monad m
                           , Functor (em m), MonadTrans em
                           , MonadError (Error TypeF IntVar) (em m) )
-          => Environment -> Ident -> em m PolyType
-lookupRef env id = do
+          => Ident -> Environment -> em m PolyType
+lookupRef id (Env env) =
   case Map.lookup id env of
     Nothing -> throwError $ UndefinedIdent id
     Just t  -> pure t
@@ -118,7 +130,7 @@ constrain env = cataM alg
     exprType (Lit (Nat  n)) = pure $ ground Natural
     exprType (Lit (UInt n)) = pure $ ground (Unsigned Nothing)
     exprType (Lit (SInt n)) = pure $ ground (Signed Nothing)
-    -- exprType (Ref id)       = lookupRef env
+    exprType (Ref id)       = lookupRef id env
 
     alg :: forall em m. ( BindingMonad TypeF IntVar m, Monad m
                         , Functor (em m), MonadTrans em
