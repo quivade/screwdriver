@@ -23,12 +23,39 @@ sint = Lit . SInt
 constExpr :: ExprF TypedExpr -> Maybe Type -> TypedExpr
 constExpr e mt = annotate mt e
 
-tests = testCase "unify single literal value" $
+field :: Orientation -> Ident -> Type -> Field Type
+field = Field
+
+exBundle :: Type
+exBundle = Fix $ Bundle [ field Direct "a" (Fix $ Ground $ Signed (Just 3))
+                        , field Direct "b" (Fix $ Ground $ Unsigned Nothing)
+                        , field Flipped "c" (Fix $ Ground $ Unsigned (Just 1))
+                        ]
+
+subFieldExpr :: ExprF TypedExpr -> Ident -> TypedExpr
+subFieldExpr b id = annotate Nothing b
+
+env = singleton "bundle" (poly exBundle)
+
+ref :: TypedExpr
+ref = annotate Nothing (Ref "bundle")
+
+unifyBundle = testCase "unify bundle type" $
+  either
+    (assertFailure . show)
+    (\p -> assertBool "unify bundle type" True)
+    (runIdentity
+      $ evalIntBindingT
+      $ runExceptT
+      $ typecheck env
+      $ annotate Nothing (SubField ref "a") )
+
+literal = testCase "unify single literal value" $
   either
     (assertFailure . show)
     (\p -> assertBool "typecheck completed" True)
     (runIdentity
       $ evalIntBindingT
       $ runExceptT
-      $ typecheck
+      $ typecheck env
       $ constExpr (sint 5) (Just (Fix $ Ground $ Signed (Just 4))))

@@ -16,6 +16,7 @@ module Language.FIRRTL.Syntax.Expr
   , PolyTypedExpr
   , TypedExpr
   , ExprF (..)
+  , polytype
   ) where
 
 import Language.FIRRTL.Annotations
@@ -95,3 +96,6 @@ instance Traversable ExprF where
 type Expr          = Fix ExprF
 type TypedExpr     = AnnFix (Maybe Type) ExprF
 type PolyTypedExpr = AnnFix PolyType ExprF
+
+polytype :: PolyTypedExpr -> PolyType
+polytype (Fix (AnnF ptype expr)) = ptype

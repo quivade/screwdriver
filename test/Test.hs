@@ -9,7 +9,7 @@ import qualified Test.Language.FIRRTL.Syntax.Expr as FIR
 main = defaultMain tests
 
 tests :: TestTree
-tests = testGroup "screwdriver" [ FIR.tests ]
+tests = testGroup "screwdriver" [ FIR.literal, FIR.unifyBundle ]
   -- [ Value.properties
   -- , Number.properties
   -- ]
